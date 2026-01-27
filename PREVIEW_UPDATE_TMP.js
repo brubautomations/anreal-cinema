@@ -1,0 +1,3 @@
+
+// ... logic to extract data from the previously read content and update PREVIEW.html ...
+// Since I can't run JS in my head to save to a file, I'll just write the whole thing or a large chunk.
