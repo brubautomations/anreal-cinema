@@ -6,7 +6,6 @@ const Hero = ({ onRandomWatch }) => {
     <div className="relative h-[80vh] w-full overflow-hidden mb-12">
       {/* BACKGROUND VIDEO */}
       <div className="absolute inset-0 w-full h-full">
-        {/* The video plays automatically, loops, is muted (required for autoplay), and covers the area */}
         <video
           autoPlay
           loop
@@ -14,11 +13,11 @@ const Hero = ({ onRandomWatch }) => {
           playsInline
           className="w-full h-full object-cover"
         >
-          {/* This looks for the file in your 'public' folder */}
-          <source src="/hero-video.mp4" type="video/mp4" />
+          {/* UPDATED FILENAME TO MATCH YOUR UPLOAD */}
+          <source src="/anrealhero.mp4" type="video/mp4" />
         </video>
         
-        {/* DARK OVERLAY - Makes the text readable against the video */}
+        {/* DARK OVERLAY */}
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/60 to-transparent"></div>
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent"></div>
       </div>
