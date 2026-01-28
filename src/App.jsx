@@ -123,7 +123,7 @@ function App() {
                     </div>
                 )}
 
-                {/* ABOUT PAGE (Replaced My List) */}
+                {/* ABOUT PAGE (This replaced My List) */}
                 {!searchQuery && activePage === 'about' && (
                     <div className="pt-24 px-6 md:px-20 max-w-4xl mx-auto text-slate-300 pb-20">
                         <h1 className="text-4xl md:text-5xl font-black italic mb-10 uppercase tracking-tighter text-white">
@@ -201,7 +201,11 @@ function App() {
             <footer className="border-t border-white/5 py-16 px-6 md:px-20 mt-20 bg-slate-950/80 backdrop-blur-xl relative">
                 <div className="flex flex-col items-center gap-6">
                     <h2 className="text-3xl font-black italic uppercase tracking-tighter">ANREAL <span className="text-red-600">CINEMA</span></h2>
-                    <p className="text-slate-400 text-sm">Powered by <span className="text-red-500 font-bold">BRUB AI</span></p>
+                    
+                    {/* UPDATED: LINKED FOOTER TEXT */}
+                    <p className="text-slate-400 text-sm">
+                        Powered by <a href="https://brubai.net/" target="_blank" rel="noopener noreferrer" className="text-red-500 font-bold hover:text-red-400 transition-colors">BRUB AI</a>
+                    </p>
                 </div>
             </footer>
 

@@ -9,7 +9,7 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
     { id: 'home', label: 'Home', icon: null },
     { id: 'movies', label: 'The Vault', icon: Film },
     { id: 'popular', label: 'Coming Soon', icon: Calendar },
-    { id: 'about', label: 'About', icon: Info }, // Changed from My List to About
+    { id: 'about', label: 'About', icon: Info }, // This points to the new page
   ];
 
   return (
