@@ -65,15 +65,17 @@ function App() {
                 {activePage === 'home' && (
                     <>
                         <Hero onRandomWatch={handleRandomWatch} />
-                        <GenreBar onGenreSelect={handleGenreSelect} selectedGenre={selectedGenre} />
-
+--- a/original.js
++++ b/original.js
+@@ -2,6 +2,7 @@
                         <div className="z-20 relative mt-8">
                             {displayGenres.map(genre => (
++
                                 <div key={genre.id} id={`genre-${genre.id}`}>
                                     <MovieRow
                                         genre={genre}
-                                        onMovieClick={handleMovieClick}
-                                    />
+@@ -9,3 +10,8 @@
+                                     />
                                 </div>
                             ))}
                         </div>
