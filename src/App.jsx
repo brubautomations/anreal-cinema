@@ -74,7 +74,6 @@ function App() {
                                 <div key={genre.id} id={`genre-${genre.id}`}>
                                     <MovieRow
                                         genre={genre}
-@@ -9,3 +10,8 @@
                                      />
                                 </div>
                             ))}
