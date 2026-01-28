@@ -1,35 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { useMovies } from '../hooks/useMovies';
 import MovieCard from './MovieCard';
 import { ChevronRight, ChevronLeft, Plus } from 'lucide-react';
 import { useDraggable } from '../hooks/useDraggable';
 
-export default function MovieRow({ genre, onMovieClick }) {
-    const [movies, setMovies] = useState([]);
+export default function MovieRow({ genre, movies = [], onMovieClick }) {
+    // 1. Filter the big list to find only movies for this genre
+    const allGenreMovies = movies.filter(movie => 
+        movie.genre && movie.genre.includes(genre.title)
+    );
+
+    // 2. Set up state for "Pagination" (showing a few at a time)
+    const [visibleMovies, setVisibleMovies] = useState([]);
     const [page, setPage] = useState(1);
-    const { fetchMovies, loading } = useMovies();
-    const { ref, isDragging, ...dragProps } = useDraggable();
-
-    const loadMovies = async (p) => {
-        const newMovies = await fetchMovies(genre.search, p);
-        if (newMovies.length > 0) {
-            setMovies(prev => [...prev, ...newMovies]);
-        }
-    };
-
+    const MOVIES_PER_PAGE = 10;
+    
+    // 3. This replaces the API call. It loads data from your file instead.
     useEffect(() => {
-        const load = async () => {
-            const newMovies = await fetchMovies(genre.search, 1);
-            setMovies(newMovies);
-        };
-        load();
-    }, [genre.search, fetchMovies]);
+        const initialMovies = allGenreMovies.slice(0, MOVIES_PER_PAGE);
+        setVisibleMovies(initialMovies);
+    }, [genre, movies]);
 
     const handleLoadMore = () => {
         const nextPage = page + 1;
+        const nextBatch = allGenreMovies.slice(0, nextPage * MOVIES_PER_PAGE);
+        setVisibleMovies(nextBatch);
         setPage(nextPage);
-        loadMovies(nextPage);
     };
+
+    // Calculate if we have more movies to show (to hide/show the button)
+    const hasMore = visibleMovies.length < allGenreMovies.length;
+
+    // Keep your existing Drag and Scroll logic exactly as it was
+    const { ref, isDragging, ...dragProps } = useDraggable();
 
     const handleMovieClick = (movie) => {
         if (!isDragging) {
@@ -47,6 +49,9 @@ export default function MovieRow({ genre, onMovieClick }) {
             ref.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
         }
     };
+
+    // If this genre has no movies at all, hide the whole row
+    if (allGenreMovies.length === 0) return null;
 
     return (
         <div className="group/row mb-12 last:mb-24 px-6 md:px-12 relative">
@@ -68,17 +73,14 @@ export default function MovieRow({ genre, onMovieClick }) {
                     {...dragProps}
                     className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 snap-x snap-mandatory no-scrollbar cursor-grab active:cursor-grabbing"
                 >
-                    {movies.map((movie, idx) => (
+                    {visibleMovies.map((movie, idx) => (
                         <div key={`${movie.id}-${idx}`} className="snap-start flex-none">
                             <MovieCard movie={movie} onClick={handleMovieClick} />
                         </div>
                     ))}
 
-                    {loading ? (
-                        <div className="flex-none w-40 md:w-64 aspect-[2/3] bg-slate-900 animate-pulse rounded-md flex items-center justify-center">
-                            <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                        </div>
-                    ) : (
+                    {/* Only show Load More if there are actually more movies */}
+                    {hasMore && (
                         <button
                             onClick={handleLoadMore}
                             className="flex-none w-40 md:w-64 aspect-[2/3] bg-slate-900/50 hover:bg-slate-900 border-2 border-dashed border-slate-700 hover:border-red-600/50 rounded-md transition-all flex flex-col items-center justify-center gap-3 text-slate-400 hover:text-red-500"
