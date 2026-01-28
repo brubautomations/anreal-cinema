@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import MovieRow from './components/MovieRow';
@@ -65,16 +65,16 @@ function App() {
                 {activePage === 'home' && (
                     <>
                         <Hero onRandomWatch={handleRandomWatch} />
---- a/original.js
-+++ b/original.js
-@@ -2,6 +2,7 @@
+                        <GenreBar onGenreSelect={handleGenreSelect} selectedGenre={selectedGenre} />
+
                         <div className="z-20 relative mt-8">
                             {displayGenres.map(genre => (
-+
                                 <div key={genre.id} id={`genre-${genre.id}`}>
                                     <MovieRow
                                         genre={genre}
-                                     />
+                                        movies={allMovies}
+                                        onMovieClick={handleMovieClick}
+                                    />
                                 </div>
                             ))}
                         </div>
@@ -128,8 +128,6 @@ function App() {
                             Powered & Maintained by <a href="https://brubai.net/" target="_blank" className="text-red-500 font-black hover:text-red-400 transition-all drop-shadow-[0_0_10px_rgba(239,68,68,0.7)] hover:drop-shadow-[0_0_15px_rgba(239,68,68,1)] uppercase tracking-widest">BRUB AI</a>.
                             <br /><span className="opacity-60 text-xs mt-2 inline-block">This platform is 99% AI-run.</span>
                         </p>
-                    </div>
-                    <div className="flex flex-col items-center md:items-end gap-6 font-black uppercase text-[10px] tracking-[0.4em] text-slate-500">
                     </div>
                 </div>
             </footer>
