@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Film, Calendar, List, Menu, X } from 'lucide-react';
+import { Search, Film, Calendar, Info, Menu, X } from 'lucide-react';
 
 const Navbar = ({ activePage, setActivePage, onSearch }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -9,7 +9,7 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
     { id: 'home', label: 'Home', icon: null },
     { id: 'movies', label: 'The Vault', icon: Film },
     { id: 'popular', label: 'Coming Soon', icon: Calendar },
-    { id: 'mylist', label: 'My List', icon: List },
+    { id: 'about', label: 'About', icon: Info }, // Changed from My List to About
   ];
 
   return (
@@ -42,7 +42,7 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
           ))}
         </div>
 
-        {/* SEARCH BAR (No Login Button) */}
+        {/* SEARCH BAR */}
         <div className="flex items-center gap-4 z-50">
           <div className={`flex items-center transition-all duration-300 ${isSearchOpen ? 'bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700' : ''}`}>
             <Search 
