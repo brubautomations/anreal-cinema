@@ -1,39 +1,54 @@
 import React from 'react';
-import { Play, Info } from 'lucide-react';
+import { Play } from 'lucide-react';
 
-export default function Hero({ onRandomWatch }) {
-    return (
-        <div className="relative h-[85vh] w-full overflow-hidden mb-12">
-            {/* Background Image */}
-            <div className="absolute inset-0">
-                <img
-                    src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&q=80&w=2000"
-                    alt="Hero background"
-                    className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/60 to-transparent"></div>
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent"></div>
-            </div>
+const Hero = ({ onRandomWatch }) => {
+  return (
+    <div className="relative h-[80vh] w-full overflow-hidden mb-12">
+      {/* BACKGROUND VIDEO */}
+      <div className="absolute inset-0 w-full h-full">
+        {/* The video plays automatically, loops, is muted (required for autoplay), and covers the area */}
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="w-full h-full object-cover"
+        >
+          {/* This looks for the file in your 'public' folder */}
+          <source src="/hero-video.mp4" type="video/mp4" />
+        </video>
+        
+        {/* DARK OVERLAY - Makes the text readable against the video */}
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/60 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent"></div>
+      </div>
 
-            <div className="relative h-full flex flex-col justify-center px-6 md:px-20 max-w-6xl">
-                <h1 className="text-6xl md:text-[8rem] font-black text-white mb-8 uppercase italic leading-[0.85] tracking-tighter drop-shadow-2xl">
-                    THE VAULT <br /> <span className="text-red-600">OF TIME</span>
-                </h1>
+      {/* TEXT CONTENT */}
+      <div className="relative z-10 h-full flex items-center px-6 md:px-12">
+        <div className="max-w-2xl">
+          <h1 className="text-5xl md:text-8xl font-black italic uppercase tracking-tighter mb-6 leading-[0.8]">
+            The <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-red-800">Vault</span>
+            <br />
+            <span className="text-white">Of Time</span>
+          </h1>
+          
+          <div className="w-20 h-2 bg-red-600 mb-8 skew-x-[-12deg]"></div>
 
-                <p className="text-slate-300 text-lg md:text-2xl mb-12 max-w-2xl font-medium leading-relaxed border-l-4 border-red-600 pl-8 drop-shadow-md">
-                    Stream thousands of public domain masterpieces, restored by AI and preserved for the future.
-                </p>
+          <p className="text-lg md:text-xl text-slate-300 font-medium mb-10 max-w-lg leading-relaxed drop-shadow-lg">
+            Stream thousands of public domain masterpieces, restored by AI and preserved for the future.
+          </p>
 
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={onRandomWatch}
-                        className="flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white px-10 py-4 rounded-lg font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-red-600/20"
-                    >
-                        <Play className="w-5 h-5 fill-current" />
-                        Watch Now
-                    </button>
-                </div>
-            </div>
+          <button 
+            onClick={onRandomWatch}
+            className="group flex items-center gap-3 bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-lg font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg shadow-red-900/20"
+          >
+            <Play className="w-5 h-5 fill-current" />
+            Watch Now
+          </button>
         </div>
-    );
-}
+      </div>
+    </div>
+  );
+};
+
+export default Hero;
