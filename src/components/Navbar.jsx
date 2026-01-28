@@ -50,3 +50,5 @@ export default function Navbar({ activePage, setActivePage }) {
         </nav>
     );
 }
+
+
