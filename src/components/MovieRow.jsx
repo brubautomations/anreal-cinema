@@ -4,22 +4,32 @@ import { ChevronRight, ChevronLeft, Plus } from 'lucide-react';
 import { useDraggable } from '../hooks/useDraggable';
 
 export default function MovieRow({ genre, movies = [], onMovieClick }) {
-    // 1. Filter the big list to find only movies for this genre
-    const allGenreMovies = movies.filter(movie => 
-        movie.genre && movie.genre.includes(genre.title)
-    );
+    // 1. THE FIX: Look for 'topics' OR 'genre' (Case Insensitive)
+    const allGenreMovies = movies.filter(movie => {
+        // Get the list of tags from the movie (handle missing data safely)
+        const tags = movie.topics || movie.genre || [];
+        
+        // Check if any tag matches the Genre Title (e.g. "Horror" matches "Horror")
+        return Array.isArray(tags) && tags.some(tag => 
+            tag && (
+                tag.toString().toLowerCase().includes(genre.title.toLowerCase()) || 
+                genre.title.toLowerCase().includes(tag.toString().toLowerCase())
+            )
+        );
+    });
 
-    // 2. Set up state for "Pagination" (showing a few at a time)
+    // 2. Pagination State
     const [visibleMovies, setVisibleMovies] = useState([]);
     const [page, setPage] = useState(1);
     const MOVIES_PER_PAGE = 10;
     
-    // 3. This replaces the API call. It loads data from your file instead.
+    // 3. Load initial movies when data arrives
     useEffect(() => {
         const initialMovies = allGenreMovies.slice(0, MOVIES_PER_PAGE);
         setVisibleMovies(initialMovies);
     }, [genre, movies]);
 
+    // 4. Handle "Load More" button
     const handleLoadMore = () => {
         const nextPage = page + 1;
         const nextBatch = allGenreMovies.slice(0, nextPage * MOVIES_PER_PAGE);
@@ -27,10 +37,9 @@ export default function MovieRow({ genre, movies = [], onMovieClick }) {
         setPage(nextPage);
     };
 
-    // Calculate if we have more movies to show (to hide/show the button)
     const hasMore = visibleMovies.length < allGenreMovies.length;
 
-    // Keep your existing Drag and Scroll logic exactly as it was
+    // 5. Advanced Drag & Scroll Logic (Preserved)
     const { ref, isDragging, ...dragProps } = useDraggable();
 
     const handleMovieClick = (movie) => {
@@ -50,7 +59,7 @@ export default function MovieRow({ genre, movies = [], onMovieClick }) {
         }
     };
 
-    // If this genre has no movies at all, hide the whole row
+    // If no movies match, hide the row
     if (allGenreMovies.length === 0) return null;
 
     return (
@@ -79,7 +88,6 @@ export default function MovieRow({ genre, movies = [], onMovieClick }) {
                         </div>
                     ))}
 
-                    {/* Only show Load More if there are actually more movies */}
                     {hasMore && (
                         <button
                             onClick={handleLoadMore}
