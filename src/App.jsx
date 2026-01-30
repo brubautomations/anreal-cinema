@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import MovieRow from './components/MovieRow';
@@ -8,33 +8,34 @@ import MovieGrid from './components/MovieGrid';
 import { GENRES } from './config/GenreConfig';
 import allMovies from './data/movies.json'; 
 
+// --- CONFIGURATION ---
+const START_DATE = new Date('2026-02-01T06:00:00'); 
+const BATCH_SIZE = 50;
+const INITIAL_VAULT_SIZE = 500; 
+
+// Helper: Calculate the date string for the next upcoming Sunday
+const getNextDropDate = () => {
+    const d = new Date();
+    // Calculate days until next Sunday (0 = Sunday)
+    const daysUntilSunday = (7 - d.getDay()) % 7;
+    d.setDate(d.getDate() + daysUntilSunday);
+    
+    // If today is Sunday and it's past 6am, the "Next" drop is NEXT week's Sunday
+    if (d.getDay() === 0 && d.getHours() >= 6) {
+         d.setDate(d.getDate() + 7);
+    }
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
 function App() {
     const [selectedMovie, setSelectedMovie] = useState(null);
     const [selectedGenre, setSelectedGenre] = useState(null);
     const [activePage, setActivePage] = useState('home');
     const [searchQuery, setSearchQuery] = useState('');
 
-    // --- AUTOMATION SETTINGS ---
-    // The "Epoch" date. Automation runs in weekly cycles from this date.
-    const START_DATE = new Date('2026-02-01T06:00:00'); 
-    const BATCH_SIZE = 50;
-    const INITIAL_VAULT_SIZE = 500; 
-
-    // Helper: Calculate the formatted text for the NEXT Sunday
-    const getNextDropDate = () => {
-        const d = new Date();
-        // Calculate days until next Sunday (0 = Sunday)
-        const daysUntilSunday = (7 - d.getDay()) % 7;
-        d.setDate(d.getDate() + daysUntilSunday);
-        // If today is Sunday and it's past 6am, the "Next" drop is NEXT week
-        if (d.getDay() === 0 && d.getHours() >= 6) {
-             d.setDate(d.getDate() + 7);
-        }
-        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    };
-
     const nextDropDateString = getNextDropDate();
 
+    // --- AUTOMATION LOGIC ---
     const getSchedule = () => {
         const now = new Date();
         const msPerWeek = 7 * 24 * 60 * 60 * 1000;
@@ -45,7 +46,7 @@ function App() {
 
         // SCENARIO 1: PRE-LAUNCH (Before Feb 1)
         if (now < START_DATE) {
-            // Vault = 1-500
+            // Vault = First 500
             vaultMovies = allMovies.slice(0, INITIAL_VAULT_SIZE);
             // Recent = Empty
             recentMovies = []; 
@@ -54,9 +55,10 @@ function App() {
         } 
         // SCENARIO 2: LIVE (Feb 1 or later)
         else {
-            const timeDiff = now - START_DATE;
+            const timeDiff = now.getTime() - START_DATE.getTime();
             const weeksPassed = Math.floor(timeDiff / msPerWeek);
             
+            // The Vault grows by 50 every week
             const currentVaultSize = INITIAL_VAULT_SIZE + (weeksPassed * BATCH_SIZE);
             
             // 1. Vault
@@ -73,8 +75,8 @@ function App() {
     };
 
     const schedule = getSchedule();
-    // -------------------------
 
+    // --- HANDLERS ---
     const handleRandomWatch = () => {
         if (schedule.vaultMovies.length > 0) {
             const validMovies = schedule.vaultMovies.filter(m => !m.isComingSoon);
@@ -133,6 +135,7 @@ function App() {
 
             <main className="relative z-10 pt-16">
                 
+                {/* SEARCH RESULTS */}
                 {searchQuery && (
                     <div className="pt-8">
                         <MovieGrid
@@ -143,6 +146,7 @@ function App() {
                     </div>
                 )}
 
+                {/* HOME PAGE */}
                 {!searchQuery && activePage === 'home' && (
                     <>
                         <Hero onRandomWatch={handleRandomWatch} />
@@ -162,12 +166,14 @@ function App() {
                     </>
                 )}
 
+                {/* THE VAULT */}
                 {!searchQuery && activePage === 'movies' && (
                     <div className="pt-8">
                         <MovieGrid title="The Vault" movies={schedule.vaultMovies} onMovieClick={handleMovieClick} />
                     </div>
                 )}
 
+                {/* RECENTLY ADDED */}
                 {!searchQuery && activePage === 'recent' && (
                     <div className="pt-8">
                         <MovieGrid 
@@ -186,6 +192,7 @@ function App() {
                     </div>
                 )}
 
+                {/* COMING SOON */}
                 {!searchQuery && activePage === 'popular' && (
                     <div className="pt-8">
                         <MovieGrid 
@@ -205,6 +212,7 @@ function App() {
                     </div>
                 )}
 
+                {/* ABOUT PAGE */}
                 {!searchQuery && activePage === 'about' && (
                     <div className="pt-24 px-6 md:px-20 max-w-4xl mx-auto text-slate-300 pb-20">
                         <h1 className="text-4xl md:text-5xl font-black italic mb-10 uppercase tracking-tighter text-white">
@@ -246,7 +254,7 @@ function App() {
                                 <ul className="list-disc pl-6 space-y-2 mb-4 text-slate-400">
                                     <li>In the public domain, or</li>
                                     <li>Free of active copyright restrictions</li>
-                                </p>
+                                </ul>
                                 <p>
                                     Where available, original or historically accurate cuts are used. In some cases, enhanced versions are presented to improve viewing quality on modern displays.
                                 </p>
@@ -279,6 +287,7 @@ function App() {
                 )}
             </main>
 
+            {/* FOOTER */}
             <footer className="border-t border-white/5 py-16 px-6 md:px-20 mt-20 bg-slate-950/80 backdrop-blur-xl relative">
                 <div className="flex flex-col items-center gap-6">
                     <h2 className="text-3xl font-black italic uppercase tracking-tighter">ANREAL <span className="text-red-600">CINEMA</span></h2>
