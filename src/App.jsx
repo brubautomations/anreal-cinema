@@ -12,7 +12,7 @@ import vaultMoviesData from './data/movies.json';
 import comingSoonData from './data/coming_soon.json';
 
 // --- CONFIGURATION ---
-const API_KEY = '9f779ecda119c29a7de55ce4e7f4f56c'; // <--- PASTE API KEY HERE
+const API_KEY = '9f779ecda119c29a7de55ce4e7f4f56c'; 
 const START_DATE = new Date('2026-02-01T06:00:00'); // Sunday Feb 1
 const BATCH_SIZE = 50;
 
@@ -55,7 +55,6 @@ function App() {
             recent = []; 
             
             // Coming Soon: ONLY the first 50 from the new file
-            // THIS IS THE FIX: We slice (0, 50) so it doesn't show all 100
             comingSoon = sanitize(comingSoonData.slice(0, BATCH_SIZE)); 
         } 
         // SCENARIO 2: LIVE CYCLE (Sunday Feb 1 onwards)
@@ -64,19 +63,15 @@ function App() {
             const weeksPassed = Math.floor((now.getTime() - START_DATE.getTime()) / msPerWeek);
             
             // 1. VAULT
-            // Starts with the base 500.
-            // Every week, we add another batch from comingSoonData into the vault.
             const vaultFromNewData = comingSoonData.slice(0, weeksPassed * BATCH_SIZE);
             vault = sanitize([...vaultMoviesData, ...vaultFromNewData]);
 
             // 2. RECENTLY ADDED
-            // The batch for the CURRENT week
             const recentStart = weeksPassed * BATCH_SIZE;
             const recentEnd = recentStart + BATCH_SIZE;
             recent = sanitize(comingSoonData.slice(recentStart, recentEnd));
 
             // 3. COMING SOON
-            // The batch for NEXT week
             const comingSoonStart = recentEnd;
             const comingSoonEnd = comingSoonStart + BATCH_SIZE;
             comingSoon = sanitize(comingSoonData.slice(comingSoonStart, comingSoonEnd));
@@ -132,7 +127,8 @@ function App() {
     // --- HANDLERS ---
     const handleRandomWatch = () => {
         if (schedule.vaultMovies.length > 0) {
-            const random = schedule.vaultMovies[Math.floor(Math.random() * schedule.vaultMovies.length)];
+            const validMovies = schedule.vaultMovies.filter(m => !m.isComingSoon);
+            const random = validMovies[Math.floor(Math.random() * validMovies.length)];
             setSelectedMovie(random);
         }
     };
@@ -215,8 +211,11 @@ function App() {
                             onMovieClick={(m) => setSelectedMovie(m)} 
                         />
                          {schedule.recentMovies.length === 0 && (
-                            <div className="text-center mt-20 px-6 text-slate-500">
-                                The first batch drops this Sunday at 6:00 AM.
+                            <div className="text-center mt-20 px-6">
+                                <h2 className="text-2xl font-bold text-slate-400 mb-2">The Vault is Sealed.</h2>
+                                <p className="text-slate-500">
+                                    The first batch of new restorations arrives <strong>Sunday, Feb 1 at 6:00 AM</strong>.
+                                </p>
                             </div>
                         )}
                     </div>
@@ -230,8 +229,12 @@ function App() {
                             onMovieClick={(m) => setSelectedMovie(m)} 
                         />
                         {schedule.comingSoonMovies.length === 0 && (
-                            <div className="text-center mt-20 px-6 text-slate-500">
-                                No upcoming movies scheduled.
+                            <div className="text-center mt-20 px-6">
+                                <h2 className="text-2xl font-bold text-slate-400 mb-2">Shhh...</h2>
+                                <p className="text-slate-500">
+                                    The next batch is being prepared.<br/>
+                                    Check back <strong>Sunday at 6:00 AM</strong> for the reveal.
+                                </p>
                             </div>
                         )}
                     </div>
@@ -242,10 +245,71 @@ function App() {
                         <h1 className="text-4xl md:text-5xl font-black italic mb-10 uppercase tracking-tighter text-white">
                             About <span className="text-red-600">Anreal Cinema</span>
                         </h1>
-                        <p className="mb-4 text-xl text-white font-medium">
-                            Anreal Cinema is a digital streaming archive focused on public-domain and copyright-expired films.
-                        </p>
-                        <p>This platform is automated. New movies are unlocked from the archives every Sunday.</p>
+                        
+                        <div className="space-y-12 text-lg leading-relaxed">
+                            <section>
+                                <p className="mb-4 text-xl text-white font-medium">
+                                    Anreal Cinema is a digital streaming archive focused on public-domain and copyright-expired films.
+                                </p>
+                                <p>
+                                    The platform provides legal access to classic motion pictures from the silent era through mid-20th-century cinema, including early horror, science fiction, drama, and documentary titles that are no longer under active copyright protection. Our goal is simple: to make historically significant films accessible in a modern viewing format.
+                                </p>
+                            </section>
+
+                            <section>
+                                <h3 className="text-2xl font-bold text-white mb-4 border-l-4 border-red-600 pl-4">AI-Driven Platform</h3>
+                                <p className="mb-4">
+                                    Anreal Cinema is operated primarily through automated systems. Approximately 99% of the platform is managed by artificial intelligence, including:
+                                </p>
+                                <ul className="list-disc pl-6 space-y-2 mb-4 text-slate-400">
+                                    <li>Film indexing and catalog organization</li>
+                                    <li>Metadata generation and search optimization</li>
+                                    <li>Video processing and formatting</li>
+                                    <li>Playback delivery and monitoring</li>
+                                    <li>Archival maintenance</li>
+                                </ul>
+                                <p>
+                                    Selected titles on the platform have undergone AI-assisted restoration, improving image stability, clarity, and audio balance while maintaining the integrity of the original material. No narrative, visual, or editorial modifications are introduced.
+                                </p>
+                            </section>
+
+                            <section>
+                                <h3 className="text-2xl font-bold text-white mb-4 border-l-4 border-red-600 pl-4">Film Sources and Restoration</h3>
+                                <p className="mb-4">
+                                    All films hosted on Anreal Cinema are verified to be:
+                                </p>
+                                <ul className="list-disc pl-6 space-y-2 mb-4 text-slate-400">
+                                    <li>In the public domain, or</li>
+                                    <li>Free of active copyright restrictions</li>
+                                </ul>
+                                <p>
+                                    Where available, original or historically accurate cuts are used. In some cases, enhanced versions are presented to improve viewing quality on modern displays.
+                                </p>
+                            </section>
+
+                            <section>
+                                <h3 className="text-2xl font-bold text-white mb-4 border-l-4 border-red-600 pl-4">Purpose</h3>
+                                <p className="mb-4">
+                                    Anreal Cinema is not a commercial streaming service and does not host newly released or licensed studio content. It exists as a preservation-focused archive intended for:
+                                </p>
+                                <ul className="list-disc pl-6 space-y-2 mb-4 text-slate-400">
+                                    <li>Education</li>
+                                    <li>Research</li>
+                                    <li>Historical reference</li>
+                                    <li>General public viewing</li>
+                                </ul>
+                                <p>
+                                    The platform is designed to operate quietly in the background, allowing the films themselves to remain the focus.
+                                </p>
+                            </section>
+
+                            <section className="bg-slate-900/50 p-6 rounded-lg border border-slate-800 mt-8">
+                                <h3 className="text-xl font-bold text-white mb-2">Legal Notice</h3>
+                                <p className="text-sm text-slate-500">
+                                    Copyright laws vary by jurisdiction. Public-domain status is evaluated using available records and U.S. copyright standards. If you believe a title has been listed incorrectly, please contact the site administrator for review.
+                                </p>
+                            </section>
+                        </div>
                     </div>
                 )}
             </main>
