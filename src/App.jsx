@@ -15,10 +15,25 @@ function App() {
     const [searchQuery, setSearchQuery] = useState('');
 
     // --- AUTOMATION SETTINGS ---
-    // Start Date: Sunday, Feb 1st at 6:00 AM
+    // The "Epoch" date. Automation runs in weekly cycles from this date.
     const START_DATE = new Date('2026-02-01T06:00:00'); 
     const BATCH_SIZE = 50;
     const INITIAL_VAULT_SIZE = 500; 
+
+    // Helper: Calculate the formatted text for the NEXT Sunday
+    const getNextDropDate = () => {
+        const d = new Date();
+        // Calculate days until next Sunday (0 = Sunday)
+        const daysUntilSunday = (7 - d.getDay()) % 7;
+        d.setDate(d.getDate() + daysUntilSunday);
+        // If today is Sunday and it's past 6am, the "Next" drop is NEXT week
+        if (d.getDay() === 0 && d.getHours() >= 6) {
+             d.setDate(d.getDate() + 7);
+        }
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
+    const nextDropDateString = getNextDropDate();
 
     const getSchedule = () => {
         const now = new Date();
@@ -34,25 +49,23 @@ function App() {
             vaultMovies = allMovies.slice(0, INITIAL_VAULT_SIZE);
             // Recent = Empty
             recentMovies = []; 
-            // Coming Soon = 501-550 (Visible NOW)
+            // Coming Soon = 501-550
             comingSoonMovies = allMovies.slice(INITIAL_VAULT_SIZE, INITIAL_VAULT_SIZE + BATCH_SIZE);
         } 
-        // SCENARIO 2: LIVE (After Feb 1)
+        // SCENARIO 2: LIVE (Feb 1 or later)
         else {
             const timeDiff = now - START_DATE;
             const weeksPassed = Math.floor(timeDiff / msPerWeek);
             
-            // On Sunday, the vault grows immediately
             const currentVaultSize = INITIAL_VAULT_SIZE + (weeksPassed * BATCH_SIZE);
             
-            // 1. Vault: Contains everything up to the previous week
+            // 1. Vault
             vaultMovies = allMovies.slice(0, currentVaultSize);
 
-            // 2. Recently Added: The batch that JUST moved from Coming Soon
+            // 2. Recently Added
             recentMovies = allMovies.slice(currentVaultSize, currentVaultSize + BATCH_SIZE);
 
-            // 3. Coming Soon: The NEXT batch (Updates immediately on Sunday)
-            // No more Monday delay. As soon as the old list moves to "Recent", the new list appears here.
+            // 3. Coming Soon
             comingSoonMovies = allMovies.slice(currentVaultSize + BATCH_SIZE, currentVaultSize + (BATCH_SIZE * 2));
         }
 
@@ -166,7 +179,7 @@ function App() {
                             <div className="text-center mt-20 px-6">
                                 <h2 className="text-2xl font-bold text-slate-400 mb-2">The Vault is Sealed.</h2>
                                 <p className="text-slate-500">
-                                    The first batch of new restorations arrives <strong>Sunday, Feb 1st at 6:00 AM</strong>.
+                                    The first batch of new restorations arrives <strong>Sunday, {nextDropDateString} at 6:00 AM</strong>.
                                 </p>
                             </div>
                         )}
@@ -233,7 +246,7 @@ function App() {
                                 <ul className="list-disc pl-6 space-y-2 mb-4 text-slate-400">
                                     <li>In the public domain, or</li>
                                     <li>Free of active copyright restrictions</li>
-                                </ul>
+                                </p>
                                 <p>
                                     Where available, original or historically accurate cuts are used. In some cases, enhanced versions are presented to improve viewing quality on modern displays.
                                 </p>

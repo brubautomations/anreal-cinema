@@ -5,13 +5,12 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  // CORRECTED ORDER: Home -> Movies -> Recently Added -> Coming Soon -> About
   const navItems = [
     { id: 'home', label: 'Home', icon: null },
     { id: 'movies', label: 'The Vault', icon: Film },
     { id: 'recent', label: 'Recently Added', icon: Sparkles },
     { id: 'popular', label: 'Coming Soon', icon: Calendar },
-    { id: 'about', label: 'About Anreal', icon: Info, isSpecial: true }, // Marked for special styling
+    { id: 'about', label: 'About', icon: Info }, // Label handled via custom logic below
   ];
 
   return (
@@ -36,12 +35,19 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
               key={item.id}
               onClick={() => setActivePage(item.id)}
               className={`text-sm font-bold uppercase tracking-widest transition-colors flex items-center gap-2 hover:text-red-500 ${
-                activePage === item.id ? 'text-white' : 
-                item.isSpecial ? 'text-red-600 hover:text-red-400' : 'text-slate-400'
+                activePage === item.id ? 'text-white' : 'text-slate-400'
               }`}
             >
               {item.icon && <item.icon className="w-4 h-4" />}
-              {item.label}
+              
+              {/* SPECIAL LOGIC FOR ABOUT TAB */}
+              {item.id === 'about' ? (
+                <span>
+                  ABOUT <span className="text-red-600">ANREAL</span>
+                </span>
+              ) : (
+                item.label
+              )}
             </button>
           ))}
         </div>
@@ -81,12 +87,14 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
                 setActivePage(item.id);
                 setIsMenuOpen(false);
               }}
-              className={`text-2xl font-bold uppercase tracking-widest hover:text-red-500 flex items-center gap-3 ${
-                 item.isSpecial ? 'text-red-600' : 'text-white'
-              }`}
+              className="text-2xl font-bold uppercase tracking-widest text-white hover:text-red-500 flex items-center gap-3"
             >
               {item.icon && <item.icon className="w-6 h-6" />}
-              {item.label}
+              {item.id === 'about' ? (
+                <span>ABOUT <span className="text-red-600">ANREAL</span></span>
+              ) : (
+                item.label
+              )}
             </button>
           ))}
         </div>
