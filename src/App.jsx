@@ -12,8 +12,9 @@ import vaultMoviesData from './data/movies.json';
 import comingSoonData from './data/coming_soon.json';
 
 // --- CONFIGURATION ---
-const API_KEY = '9f779ecda119c29a7de55ce4e7f4f56c'; // <--- PASTE YOUR KEY HERE
-const NEXT_DROP_DATE = new Date('2026-02-01T06:00:00'); // Sunday Feb 1 6AM
+const API_KEY = '9f779ecda119c29a7de55ce4e7f4f56c'; // <--- PASTE API KEY HERE
+const START_DATE = new Date('2026-02-01T06:00:00'); // Sunday Feb 1
+const BATCH_SIZE = 50;
 
 function App() {
     const [selectedMovie, setSelectedMovie] = useState(null);
@@ -31,31 +32,56 @@ function App() {
     // --- 1. THE AUTOMATION ENGINE (Logic Only) ---
     const getRawSchedule = () => {
         const now = new Date();
+        const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+
+        // Helper: Standardize movie data
+        const sanitize = (list) => list.map(m => ({
+            ...m,
+            id: m.id || Math.random().toString(36).substr(2, 9),
+            poster: m.poster || m.image, // Prefer poster, fallback to image
+            videoUrl: m.videoUrl || "/banner.mp4"
+        }));
+
         let vault = [];
         let recent = [];
         let comingSoon = [];
 
-        // Helper: Ensure every movie has the required fields
-        const sanitize = (list) => list.map(m => ({
-            ...m,
-            // If ID is weird, make sure it's a string
-            id: m.id || Math.random().toString(36).substr(2, 9),
-            // Default to Archive image, but we will override this with TMDB later
-            poster: m.image || m.poster, 
-            videoUrl: m.videoUrl || "/banner.mp4"
-        }));
+        // SCENARIO 1: PRE-LAUNCH (Right Now / Before Feb 1)
+        if (now < START_DATE) {
+            // Vault: The original 500
+            vault = sanitize(vaultMoviesData);
+            
+            // Recent: Empty (Wait for Sunday)
+            recent = []; 
+            
+            // Coming Soon: ONLY the first 50 from the new file
+            // THIS IS THE FIX: We slice (0, 50) so it doesn't show all 100
+            comingSoon = sanitize(comingSoonData.slice(0, BATCH_SIZE)); 
+        } 
+        // SCENARIO 2: LIVE CYCLE (Sunday Feb 1 onwards)
+        else {
+            // Calculate weeks passed since Feb 1
+            const weeksPassed = Math.floor((now.getTime() - START_DATE.getTime()) / msPerWeek);
+            
+            // 1. VAULT
+            // Starts with the base 500.
+            // Every week, we add another batch from comingSoonData into the vault.
+            const vaultFromNewData = comingSoonData.slice(0, weeksPassed * BATCH_SIZE);
+            vault = sanitize([...vaultMoviesData, ...vaultFromNewData]);
 
-        if (now < NEXT_DROP_DATE) {
-            // SCENARIO 1: Before Sunday Feb 1
-            vault = sanitize(vaultMoviesData);
-            recent = []; // Empty
-            comingSoon = sanitize(comingSoonData); // The list you showed me
-        } else {
-            // SCENARIO 2: After Sunday Feb 1
-            vault = sanitize(vaultMoviesData);
-            recent = sanitize(comingSoonData); // Moved to Recent
-            comingSoon = []; // Empty until you add more to the JSON
+            // 2. RECENTLY ADDED
+            // The batch for the CURRENT week
+            const recentStart = weeksPassed * BATCH_SIZE;
+            const recentEnd = recentStart + BATCH_SIZE;
+            recent = sanitize(comingSoonData.slice(recentStart, recentEnd));
+
+            // 3. COMING SOON
+            // The batch for NEXT week
+            const comingSoonStart = recentEnd;
+            const comingSoonEnd = comingSoonStart + BATCH_SIZE;
+            comingSoon = sanitize(comingSoonData.slice(comingSoonStart, comingSoonEnd));
         }
+
         return { vault, recent, comingSoon };
     };
 
@@ -63,47 +89,34 @@ function App() {
     useEffect(() => {
         const rawSchedule = getRawSchedule();
         
-        // Function to find a poster for a single movie
         const fetchPoster = async (movie) => {
-            // If it already has a high-quality TMDB link, skip fetching
+            // If it already has a TMDB link, skip fetching
             if (movie.poster && movie.poster.includes('tmdb.org')) return movie;
 
             try {
-                // Search TMDB by Title
                 const response = await fetch(
                     `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(movie.title)}`
                 );
                 const data = await response.json();
                 
                 if (data.results && data.results.length > 0) {
-                    // Found it! Use the first result's poster
                     const hit = data.results[0];
                     return {
                         ...movie,
                         poster: `https://image.tmdb.org/t/p/w500${hit.poster_path}`,
-                        overview: hit.overview || movie.description, // Bonus: Update description too
+                        overview: hit.overview || movie.description,
                         releaseDate: hit.release_date
                     };
                 }
             } catch (error) {
-                console.error("Could not find poster for:", movie.title);
+                console.error("API Error:", error);
             }
-            // If fail, return original movie with old image
             return movie;
         };
 
-        // Run the fetcher on our lists
         const enrichMovies = async () => {
-            // We only fetch posters for "Recent" and "Coming Soon" to save API calls
-            // Vault movies usually stay static, but we can fetch them too if you want.
-            
-            const enrichedRecent = await Promise.all(
-                rawSchedule.recent.map(movie => fetchPoster(movie))
-            );
-
-            const enrichedComingSoon = await Promise.all(
-                rawSchedule.comingSoon.map(movie => fetchPoster(movie))
-            );
+            const enrichedRecent = await Promise.all(rawSchedule.recent.map(fetchPoster));
+            const enrichedComingSoon = await Promise.all(rawSchedule.comingSoon.map(fetchPoster));
 
             setSchedule({
                 vaultMovies: rawSchedule.vault,
@@ -114,7 +127,7 @@ function App() {
 
         enrichMovies();
 
-    }, []); // Run once on load
+    }, []);
 
     // --- HANDLERS ---
     const handleRandomWatch = () => {
@@ -148,7 +161,6 @@ function App() {
         }
     };
 
-    // Combine for search
     const allSearchableMovies = [...schedule.vaultMovies, ...schedule.recentMovies, ...schedule.comingSoonMovies];
     const searchResults = searchQuery 
         ? allSearchableMovies.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -215,8 +227,6 @@ function App() {
                         <MovieGrid 
                             title="Coming Soon" 
                             movies={schedule.comingSoonMovies} 
-                            // We disable clicking for Coming Soon, or let them click to see the poster?
-                            // Let's let them click to see details.
                             onMovieClick={(m) => setSelectedMovie(m)} 
                         />
                         {schedule.comingSoonMovies.length === 0 && (
@@ -236,12 +246,6 @@ function App() {
                             Anreal Cinema is a digital streaming archive focused on public-domain and copyright-expired films.
                         </p>
                         <p>This platform is automated. New movies are unlocked from the archives every Sunday.</p>
-                        <div className="mt-8 p-6 bg-slate-900/50 rounded-lg border border-slate-800">
-                            <h3 className="text-xl font-bold text-white mb-2">Legal Notice</h3>
-                            <p className="text-sm text-slate-500">
-                                Copyright laws vary by jurisdiction. Public-domain status is evaluated using available records and U.S. copyright standards.
-                            </p>
-                        </div>
                     </div>
                 )}
             </main>
