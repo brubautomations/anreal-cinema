@@ -9,9 +9,9 @@ import { GENRES } from './config/GenreConfig';
 import allMovies from './data/movies.json'; 
 
 // --- CONFIGURATION ---
-// This is the date the "Cycle" started.
-// We set it to a past date so the logic starts counting weeks immediately.
-const CYCLE_START_DATE = new Date('2024-01-28T06:00:00'); 
+// Set this to THIS COMING SUNDAY.
+// The automation starts counting "Week 1" from this moment.
+const CYCLE_START_DATE = new Date('2026-02-01T06:00:00'); 
 const BATCH_SIZE = 50;
 const INITIAL_VAULT_SIZE = 500; 
 
@@ -26,25 +26,49 @@ function App() {
         const now = new Date();
         const msPerWeek = 7 * 24 * 60 * 60 * 1000;
         
-        // How many full weeks have passed since we started?
-        const weeksPassed = Math.floor((now.getTime() - CYCLE_START_DATE.getTime()) / msPerWeek);
-        
-        // 1. THE VAULT (Permanent Collection)
-        // Contains the original 500 + all old "Recently Added" batches
-        const vaultCutoff = INITIAL_VAULT_SIZE + (weeksPassed * BATCH_SIZE);
-        const vaultMovies = allMovies.slice(0, vaultCutoff);
+        let vaultMovies = [];
+        let recentMovies = [];
+        let comingSoonMovies = [];
 
-        // 2. RECENTLY ADDED (This Week's Fresh Batch)
-        // This is the batch that "Just Arrived" this Sunday
-        const recentStart = vaultCutoff;
-        const recentEnd = vaultCutoff + BATCH_SIZE;
-        const recentMovies = allMovies.slice(recentStart, recentEnd);
+        // SCENARIO 1: RIGHT NOW (Before the first drop on Sunday)
+        if (now < CYCLE_START_DATE) {
+            // Vault = The original 500
+            vaultMovies = allMovies.slice(0, INITIAL_VAULT_SIZE);
+            
+            // Recently Added = Empty (The first batch hasn't dropped yet)
+            recentMovies = []; 
+            
+            // Coming Soon = The First Batch (501-550)
+            // This ensures they are visible TODAY as "Coming Soon"
+            comingSoonMovies = allMovies.slice(INITIAL_VAULT_SIZE, INITIAL_VAULT_SIZE + BATCH_SIZE);
+        } 
+        // SCENARIO 2: THE MACHINE IS RUNNING (Sunday 6am onwards)
+        else {
+            const weeksPassed = Math.floor((now.getTime() - CYCLE_START_DATE.getTime()) / msPerWeek);
+            
+            // 1. THE VAULT
+            // Grows by 50 every week. 
+            // Week 0 (Feb 1): 0-500
+            // Week 1 (Feb 8): 0-550
+            const vaultCutoff = INITIAL_VAULT_SIZE + (weeksPassed * BATCH_SIZE);
+            vaultMovies = allMovies.slice(0, vaultCutoff);
 
-        // 3. COMING SOON (Next Week's Batch)
-        // This is the batch waiting for NEXT Sunday
-        const comingSoonStart = recentEnd;
-        const comingSoonEnd = recentEnd + BATCH_SIZE;
-        const comingSoonMovies = allMovies.slice(comingSoonStart, comingSoonEnd);
+            // 2. RECENTLY ADDED
+            // The batch that just moved out of Coming Soon.
+            // Week 0 (Feb 1): 501-550
+            // Week 1 (Feb 8): 551-600
+            const recentStart = vaultCutoff;
+            const recentEnd = vaultCutoff + BATCH_SIZE;
+            recentMovies = allMovies.slice(recentStart, recentEnd);
+
+            // 3. COMING SOON
+            // The NEXT batch waiting in line.
+            // Week 0 (Feb 1): 551-600
+            // Week 1 (Feb 8): 601-650
+            const comingSoonStart = recentEnd;
+            const comingSoonEnd = recentEnd + BATCH_SIZE;
+            comingSoonMovies = allMovies.slice(comingSoonStart, comingSoonEnd);
+        }
 
         return { vaultMovies, recentMovies, comingSoonMovies };
     };
@@ -158,7 +182,7 @@ function App() {
                         />
                          {schedule.recentMovies.length === 0 && (
                             <div className="text-center mt-20 px-6 text-slate-500">
-                                No movies in this batch yet.
+                                The first batch drops this Sunday at 6:00 AM.
                             </div>
                         )}
                     </div>
