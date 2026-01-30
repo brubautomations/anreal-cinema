@@ -6,8 +6,6 @@ import MovieModal from './components/MovieModal';
 import GenreBar from './components/GenreBar';
 import MovieGrid from './components/MovieGrid';
 import { GENRES } from './config/GenreConfig';
-
-// Data imports - EVERYTHING should be in allMovies eventually
 import allMovies from './data/movies.json'; 
 
 function App() {
@@ -16,60 +14,47 @@ function App() {
     const [activePage, setActivePage] = useState('home');
     const [searchQuery, setSearchQuery] = useState('');
 
-    // --- AUTOMATION ENGINE ---
-    // 1. Set the "Epoch" - The Sunday when your cycle started.
-    // Let's set this to a recent Sunday (e.g., Jan 28, 2024, or roughly now).
-    // ADJUST THIS DATE to shift the batches if needed.
-    const START_DATE = new Date('2024-01-28T06:00:00'); 
+    // --- AUTOMATION SETTINGS ---
+    // Start Date: Sunday, Feb 1st at 6:00 AM
+    const START_DATE = new Date('2026-02-01T06:00:00'); 
     const BATCH_SIZE = 50;
-    const INITIAL_VAULT_SIZE = 500; // The first 500 are always in the vault
+    const INITIAL_VAULT_SIZE = 500; 
 
     const getSchedule = () => {
         const now = new Date();
         const msPerWeek = 7 * 24 * 60 * 60 * 1000;
         
-        // Calculate how many full weeks have passed since Start Date
-        const weeksPassed = Math.floor((now - START_DATE) / msPerWeek);
-        
-        // Calculate the boundary for the Vault
-        // Every week, the vault grows by 50
-        const vaultCutoff = INITIAL_VAULT_SIZE + (weeksPassed * BATCH_SIZE);
-        
-        // Define the Arrays
-        const vaultMovies = allMovies.slice(0, vaultCutoff);
-        const recentMovies = allMovies.slice(vaultCutoff, vaultCutoff + BATCH_SIZE);
-        
-        // Coming Soon Logic:
-        // Shows the NEXT batch, but only after Monday 6am.
-        // If today is Sunday (Day 0) and it's before Monday 6am, we might want to hide it or show empty.
-        // Let's simplify: It just grabs the next batch.
-        // To strictly enforce "Monday 6am", we check the current day/time relative to the current week start.
-        
+        let vaultMovies = [];
+        let recentMovies = [];
         let comingSoonMovies = [];
-        const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday
-        const hours = now.getHours();
 
-        // Logic: On Sunday (after 6am) until Monday (before 6am), Coming Soon is empty/hidden.
-        // From Monday 6am onwards, it shows the next batch.
-        const isMondayMorningOrLater = (dayOfWeek === 1 && hours >= 6) || (dayOfWeek > 1);
-        
-        if (isMondayMorningOrLater || dayOfWeek === 0) { 
-             // Allow Sunday too? User said "Monday morning 6am... new list uploaded".
-             // So strictly:
-             if (dayOfWeek === 1 && hours < 6) {
-                 // It's Monday early morning, wait.
-                 comingSoonMovies = [];
-             } else if (dayOfWeek === 0 && hours >= 6) {
-                 // It's Sunday after 6am. The "Next" coming soon hasn't arrived yet (arrives Monday).
-                 comingSoonMovies = [];
-             } else {
-                 // It is safe to show coming soon
-                 comingSoonMovies = allMovies.slice(vaultCutoff + BATCH_SIZE, vaultCutoff + (BATCH_SIZE * 2));
-             }
+        // SCENARIO 1: PRE-LAUNCH (Before Feb 1)
+        if (now < START_DATE) {
+            // Vault = 1-500
+            vaultMovies = allMovies.slice(0, INITIAL_VAULT_SIZE);
+            // Recent = Empty
+            recentMovies = []; 
+            // Coming Soon = 501-550 (Visible NOW)
+            comingSoonMovies = allMovies.slice(INITIAL_VAULT_SIZE, INITIAL_VAULT_SIZE + BATCH_SIZE);
+        } 
+        // SCENARIO 2: LIVE (After Feb 1)
+        else {
+            const timeDiff = now - START_DATE;
+            const weeksPassed = Math.floor(timeDiff / msPerWeek);
+            
+            // On Sunday, the vault grows immediately
+            const currentVaultSize = INITIAL_VAULT_SIZE + (weeksPassed * BATCH_SIZE);
+            
+            // 1. Vault: Contains everything up to the previous week
+            vaultMovies = allMovies.slice(0, currentVaultSize);
+
+            // 2. Recently Added: The batch that JUST moved from Coming Soon
+            recentMovies = allMovies.slice(currentVaultSize, currentVaultSize + BATCH_SIZE);
+
+            // 3. Coming Soon: The NEXT batch (Updates immediately on Sunday)
+            // No more Monday delay. As soon as the old list moves to "Recent", the new list appears here.
+            comingSoonMovies = allMovies.slice(currentVaultSize + BATCH_SIZE, currentVaultSize + (BATCH_SIZE * 2));
         }
-
-        // If simple logic is preferred (Always show next batch):
-        // comingSoonMovies = allMovies.slice(vaultCutoff + BATCH_SIZE, vaultCutoff + (BATCH_SIZE * 2));
 
         return { vaultMovies, recentMovies, comingSoonMovies };
     };
@@ -79,7 +64,8 @@ function App() {
 
     const handleRandomWatch = () => {
         if (schedule.vaultMovies.length > 0) {
-            const random = schedule.vaultMovies[Math.floor(Math.random() * schedule.vaultMovies.length)];
+            const validMovies = schedule.vaultMovies.filter(m => !m.isComingSoon);
+            const random = validMovies[Math.floor(Math.random() * validMovies.length)];
             setSelectedMovie(random);
         }
     };
@@ -134,7 +120,6 @@ function App() {
 
             <main className="relative z-10 pt-16">
                 
-                {/* SEARCH RESULTS VIEW */}
                 {searchQuery && (
                     <div className="pt-8">
                         <MovieGrid
@@ -145,7 +130,6 @@ function App() {
                     </div>
                 )}
 
-                {/* HOME PAGE VIEW - Uses Vault Movies */}
                 {!searchQuery && activePage === 'home' && (
                     <>
                         <Hero onRandomWatch={handleRandomWatch} />
@@ -156,7 +140,7 @@ function App() {
                                 <div key={genre.id} id={`genre-${genre.id}`}>
                                     <MovieRow
                                         genre={genre}
-                                        movies={schedule.vaultMovies} // Only show Vault movies here
+                                        movies={schedule.vaultMovies}
                                         onMovieClick={handleMovieClick}
                                     />
                                 </div>
@@ -165,70 +149,123 @@ function App() {
                     </>
                 )}
 
-                {/* THE VAULT PAGE */}
                 {!searchQuery && activePage === 'movies' && (
                     <div className="pt-8">
-                        <MovieGrid 
-                            title="The Vault (Full Collection)" 
-                            movies={schedule.vaultMovies} 
-                            onMovieClick={handleMovieClick} 
-                        />
+                        <MovieGrid title="The Vault" movies={schedule.vaultMovies} onMovieClick={handleMovieClick} />
                     </div>
                 )}
 
-                {/* RECENTLY ADDED PAGE (New Tab) */}
                 {!searchQuery && activePage === 'recent' && (
                     <div className="pt-8">
                         <MovieGrid 
-                            title="Recently Added (This Week)" 
+                            title="Recently Added" 
                             movies={schedule.recentMovies} 
                             onMovieClick={handleMovieClick} 
                         />
                          {schedule.recentMovies.length === 0 && (
-                            <p className="text-center text-slate-500 mt-10">
-                                New movies arrive every Sunday at 6am.
-                            </p>
-                        )}
-                    </div>
-                )}
-
-                {/* COMING SOON PAGE */}
-                {!searchQuery && activePage === 'popular' && (
-                    <div className="pt-8">
-                        <MovieGrid 
-                            title="Coming Soon (Next Week)" 
-                            movies={schedule.comingSoonMovies} 
-                            // Pass a "disabled" prop or just don't handle click if you want them unwatchable
-                            // For now we let them click to see info, or you can block it.
-                            onMovieClick={(m) => alert("This movie unlocks next Sunday!")} 
-                        />
-                        {schedule.comingSoonMovies.length === 0 && (
                             <div className="text-center mt-20 px-6">
-                                <h2 className="text-2xl font-bold text-slate-400 mb-2">Shhh...</h2>
+                                <h2 className="text-2xl font-bold text-slate-400 mb-2">The Vault is Sealed.</h2>
                                 <p className="text-slate-500">
-                                    The next batch is being prepared.<br/>
-                                    Check back <strong>Monday at 6:00 AM</strong> for the reveal.
+                                    The first batch of new restorations arrives <strong>Sunday, Feb 1st at 6:00 AM</strong>.
                                 </p>
                             </div>
                         )}
                     </div>
                 )}
 
-                {/* ABOUT PAGE */}
+                {!searchQuery && activePage === 'popular' && (
+                    <div className="pt-8">
+                        <MovieGrid 
+                            title="Coming Soon" 
+                            movies={schedule.comingSoonMovies} 
+                            onMovieClick={() => {}} 
+                        />
+                        {schedule.comingSoonMovies.length === 0 && (
+                            <div className="text-center mt-20 px-6">
+                                <h2 className="text-2xl font-bold text-slate-400 mb-2">Shhh...</h2>
+                                <p className="text-slate-500">
+                                    The next batch is being prepared.<br/>
+                                    Check back <strong>Sunday at 6:00 AM</strong> for the reveal.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {!searchQuery && activePage === 'about' && (
                     <div className="pt-24 px-6 md:px-20 max-w-4xl mx-auto text-slate-300 pb-20">
                         <h1 className="text-4xl md:text-5xl font-black italic mb-10 uppercase tracking-tighter text-white">
                             About <span className="text-red-600">Anreal Cinema</span>
                         </h1>
-                        <p className="text-lg mb-8">
-                            This platform is automated. New movies are unlocked from the archives every Sunday.
-                        </p>
-                        {/* ... (Keep your previous About text here) ... */}
+                        
+                        <div className="space-y-12 text-lg leading-relaxed">
+                            <section>
+                                <p className="mb-4 text-xl text-white font-medium">
+                                    Anreal Cinema is a digital streaming archive focused on public-domain and copyright-expired films.
+                                </p>
+                                <p>
+                                    The platform provides legal access to classic motion pictures from the silent era through mid-20th-century cinema, including early horror, science fiction, drama, and documentary titles that are no longer under active copyright protection. Our goal is simple: to make historically significant films accessible in a modern viewing format.
+                                </p>
+                            </section>
+
+                            <section>
+                                <h3 className="text-2xl font-bold text-white mb-4 border-l-4 border-red-600 pl-4">AI-Driven Platform</h3>
+                                <p className="mb-4">
+                                    Anreal Cinema is operated primarily through automated systems. Approximately 99% of the platform is managed by artificial intelligence, including:
+                                </p>
+                                <ul className="list-disc pl-6 space-y-2 mb-4 text-slate-400">
+                                    <li>Film indexing and catalog organization</li>
+                                    <li>Metadata generation and search optimization</li>
+                                    <li>Video processing and formatting</li>
+                                    <li>Playback delivery and monitoring</li>
+                                    <li>Archival maintenance</li>
+                                </ul>
+                                <p>
+                                    Selected titles on the platform have undergone AI-assisted restoration, improving image stability, clarity, and audio balance while maintaining the integrity of the original material. No narrative, visual, or editorial modifications are introduced.
+                                </p>
+                            </section>
+
+                            <section>
+                                <h3 className="text-2xl font-bold text-white mb-4 border-l-4 border-red-600 pl-4">Film Sources and Restoration</h3>
+                                <p className="mb-4">
+                                    All films hosted on Anreal Cinema are verified to be:
+                                </p>
+                                <ul className="list-disc pl-6 space-y-2 mb-4 text-slate-400">
+                                    <li>In the public domain, or</li>
+                                    <li>Free of active copyright restrictions</li>
+                                </ul>
+                                <p>
+                                    Where available, original or historically accurate cuts are used. In some cases, enhanced versions are presented to improve viewing quality on modern displays.
+                                </p>
+                            </section>
+
+                            <section>
+                                <h3 className="text-2xl font-bold text-white mb-4 border-l-4 border-red-600 pl-4">Purpose</h3>
+                                <p className="mb-4">
+                                    Anreal Cinema is not a commercial streaming service and does not host newly released or licensed studio content. It exists as a preservation-focused archive intended for:
+                                </p>
+                                <ul className="list-disc pl-6 space-y-2 mb-4 text-slate-400">
+                                    <li>Education</li>
+                                    <li>Research</li>
+                                    <li>Historical reference</li>
+                                    <li>General public viewing</li>
+                                </ul>
+                                <p>
+                                    The platform is designed to operate quietly in the background, allowing the films themselves to remain the focus.
+                                </p>
+                            </section>
+
+                            <section className="bg-slate-900/50 p-6 rounded-lg border border-slate-800 mt-8">
+                                <h3 className="text-xl font-bold text-white mb-2">Legal Notice</h3>
+                                <p className="text-sm text-slate-500">
+                                    Copyright laws vary by jurisdiction. Public-domain status is evaluated using available records and U.S. copyright standards. If you believe a title has been listed incorrectly, please contact the site administrator for review.
+                                </p>
+                            </section>
+                        </div>
                     </div>
                 )}
             </main>
 
-            {/* FOOTER */}
             <footer className="border-t border-white/5 py-16 px-6 md:px-20 mt-20 bg-slate-950/80 backdrop-blur-xl relative">
                 <div className="flex flex-col items-center gap-6">
                     <h2 className="text-3xl font-black italic uppercase tracking-tighter">ANREAL <span className="text-red-600">CINEMA</span></h2>
