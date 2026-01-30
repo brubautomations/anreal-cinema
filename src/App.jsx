@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import MovieRow from './components/MovieRow';
@@ -6,158 +6,182 @@ import MovieModal from './components/MovieModal';
 import GenreBar from './components/GenreBar';
 import MovieGrid from './components/MovieGrid';
 import { GENRES } from './config/GenreConfig';
-import allMovies from './data/movies.json'; 
+
+// --- DATA IMPORTS ---
+import vaultMoviesData from './data/movies.json'; 
+import comingSoonData from './data/coming_soon.json';
 
 // --- CONFIGURATION ---
-// Set this to THIS COMING SUNDAY.
-// The automation starts counting "Week 1" from this moment.
-const CYCLE_START_DATE = new Date('2026-02-01T06:00:00'); 
-const BATCH_SIZE = 50;
-const INITIAL_VAULT_SIZE = 500; 
+const API_KEY = '9f779ecda119c29a7de55ce4e7f4f56c'; // <--- PASTE YOUR KEY HERE
+const NEXT_DROP_DATE = new Date('2026-02-01T06:00:00'); // Sunday Feb 1 6AM
 
 function App() {
     const [selectedMovie, setSelectedMovie] = useState(null);
     const [selectedGenre, setSelectedGenre] = useState(null);
     const [activePage, setActivePage] = useState('home');
     const [searchQuery, setSearchQuery] = useState('');
+    
+    // State to hold movies AFTER we find their real posters
+    const [schedule, setSchedule] = useState({
+        vaultMovies: [],
+        recentMovies: [],
+        comingSoonMovies: []
+    });
 
-    // --- AUTOMATION LOGIC ---
-    const getSchedule = () => {
+    // --- 1. THE AUTOMATION ENGINE (Logic Only) ---
+    const getRawSchedule = () => {
         const now = new Date();
-        const msPerWeek = 7 * 24 * 60 * 60 * 1000;
-        
-        let vaultMovies = [];
-        let recentMovies = [];
-        let comingSoonMovies = [];
+        let vault = [];
+        let recent = [];
+        let comingSoon = [];
 
-        // SCENARIO 1: RIGHT NOW (Before the first drop on Sunday)
-        if (now < CYCLE_START_DATE) {
-            // Vault = The original 500
-            vaultMovies = allMovies.slice(0, INITIAL_VAULT_SIZE);
-            
-            // Recently Added = Empty (The first batch hasn't dropped yet)
-            recentMovies = []; 
-            
-            // Coming Soon = The First Batch (501-550)
-            // This ensures they are visible TODAY as "Coming Soon"
-            comingSoonMovies = allMovies.slice(INITIAL_VAULT_SIZE, INITIAL_VAULT_SIZE + BATCH_SIZE);
-        } 
-        // SCENARIO 2: THE MACHINE IS RUNNING (Sunday 6am onwards)
-        else {
-            const weeksPassed = Math.floor((now.getTime() - CYCLE_START_DATE.getTime()) / msPerWeek);
-            
-            // 1. THE VAULT
-            // Grows by 50 every week. 
-            // Week 0 (Feb 1): 0-500
-            // Week 1 (Feb 8): 0-550
-            const vaultCutoff = INITIAL_VAULT_SIZE + (weeksPassed * BATCH_SIZE);
-            vaultMovies = allMovies.slice(0, vaultCutoff);
+        // Helper: Ensure every movie has the required fields
+        const sanitize = (list) => list.map(m => ({
+            ...m,
+            // If ID is weird, make sure it's a string
+            id: m.id || Math.random().toString(36).substr(2, 9),
+            // Default to Archive image, but we will override this with TMDB later
+            poster: m.image || m.poster, 
+            videoUrl: m.videoUrl || "/banner.mp4"
+        }));
 
-            // 2. RECENTLY ADDED
-            // The batch that just moved out of Coming Soon.
-            // Week 0 (Feb 1): 501-550
-            // Week 1 (Feb 8): 551-600
-            const recentStart = vaultCutoff;
-            const recentEnd = vaultCutoff + BATCH_SIZE;
-            recentMovies = allMovies.slice(recentStart, recentEnd);
-
-            // 3. COMING SOON
-            // The NEXT batch waiting in line.
-            // Week 0 (Feb 1): 551-600
-            // Week 1 (Feb 8): 601-650
-            const comingSoonStart = recentEnd;
-            const comingSoonEnd = recentEnd + BATCH_SIZE;
-            comingSoonMovies = allMovies.slice(comingSoonStart, comingSoonEnd);
+        if (now < NEXT_DROP_DATE) {
+            // SCENARIO 1: Before Sunday Feb 1
+            vault = sanitize(vaultMoviesData);
+            recent = []; // Empty
+            comingSoon = sanitize(comingSoonData); // The list you showed me
+        } else {
+            // SCENARIO 2: After Sunday Feb 1
+            vault = sanitize(vaultMoviesData);
+            recent = sanitize(comingSoonData); // Moved to Recent
+            comingSoon = []; // Empty until you add more to the JSON
         }
-
-        return { vaultMovies, recentMovies, comingSoonMovies };
+        return { vault, recent, comingSoon };
     };
 
-    const schedule = getSchedule();
+    // --- 2. THE API FETCHING ENGINE (Auto-Images) ---
+    useEffect(() => {
+        const rawSchedule = getRawSchedule();
+        
+        // Function to find a poster for a single movie
+        const fetchPoster = async (movie) => {
+            // If it already has a high-quality TMDB link, skip fetching
+            if (movie.poster && movie.poster.includes('tmdb.org')) return movie;
+
+            try {
+                // Search TMDB by Title
+                const response = await fetch(
+                    `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(movie.title)}`
+                );
+                const data = await response.json();
+                
+                if (data.results && data.results.length > 0) {
+                    // Found it! Use the first result's poster
+                    const hit = data.results[0];
+                    return {
+                        ...movie,
+                        poster: `https://image.tmdb.org/t/p/w500${hit.poster_path}`,
+                        overview: hit.overview || movie.description, // Bonus: Update description too
+                        releaseDate: hit.release_date
+                    };
+                }
+            } catch (error) {
+                console.error("Could not find poster for:", movie.title);
+            }
+            // If fail, return original movie with old image
+            return movie;
+        };
+
+        // Run the fetcher on our lists
+        const enrichMovies = async () => {
+            // We only fetch posters for "Recent" and "Coming Soon" to save API calls
+            // Vault movies usually stay static, but we can fetch them too if you want.
+            
+            const enrichedRecent = await Promise.all(
+                rawSchedule.recent.map(movie => fetchPoster(movie))
+            );
+
+            const enrichedComingSoon = await Promise.all(
+                rawSchedule.comingSoon.map(movie => fetchPoster(movie))
+            );
+
+            setSchedule({
+                vaultMovies: rawSchedule.vault,
+                recentMovies: enrichedRecent,
+                comingSoonMovies: enrichedComingSoon
+            });
+        };
+
+        enrichMovies();
+
+    }, []); // Run once on load
 
     // --- HANDLERS ---
     const handleRandomWatch = () => {
         if (schedule.vaultMovies.length > 0) {
-            const validMovies = schedule.vaultMovies.filter(m => !m.isComingSoon);
-            const random = validMovies[Math.floor(Math.random() * validMovies.length)];
+            const random = schedule.vaultMovies[Math.floor(Math.random() * schedule.vaultMovies.length)];
             setSelectedMovie(random);
         }
     };
 
-    const handleMovieClick = (movie) => {
-        setSelectedMovie(movie);
-    };
-
     const handleSearch = (query) => {
         setSearchQuery(query);
-        if (query) {
-            setActivePage('search');
-        } else {
-            setActivePage('home');
-        }
+        setActivePage(query ? 'search' : 'home');
     };
 
     const handleGenreSelect = (genre) => {
         setSelectedGenre(genre);
         setSearchQuery('');
         if (genre) {
-            if (activePage === 'home') {
+            setActivePage('home');
+            setTimeout(() => {
                 const element = document.getElementById(`genre-${genre.id}`);
                 if (element) {
-                    const offset = 140;
-                    window.scrollTo({
-                        top: element.getBoundingClientRect().top + window.scrollY - offset,
+                     window.scrollTo({
+                        top: element.getBoundingClientRect().top + window.scrollY - 140,
                         behavior: 'smooth'
                     });
                 }
-            } else {
-                setActivePage('home');
-            }
+            }, 100);
         } else {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     };
 
+    // Combine for search
+    const allSearchableMovies = [...schedule.vaultMovies, ...schedule.recentMovies, ...schedule.comingSoonMovies];
     const searchResults = searchQuery 
-        ? allMovies.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()))
+        ? allSearchableMovies.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()))
         : [];
-
     const displayGenres = selectedGenre ? [selectedGenre] : GENRES;
 
     return (
         <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-red-600 selection:text-white">
-            <Navbar 
-                activePage={activePage} 
-                setActivePage={setActivePage} 
-                onSearch={handleSearch} 
-            />
+            <Navbar activePage={activePage} setActivePage={setActivePage} onSearch={handleSearch} />
 
             <main className="relative z-10 pt-16">
                 
-                {/* SEARCH RESULTS */}
                 {searchQuery && (
                     <div className="pt-8">
                         <MovieGrid
                             title={`Results for "${searchQuery}"`}
                             movies={searchResults}
-                            onMovieClick={handleMovieClick}
+                            onMovieClick={(m) => setSelectedMovie(m)}
                         />
                     </div>
                 )}
 
-                {/* HOME PAGE */}
                 {!searchQuery && activePage === 'home' && (
                     <>
                         <Hero onRandomWatch={handleRandomWatch} />
                         <GenreBar onGenreSelect={handleGenreSelect} selectedGenre={selectedGenre} />
-
                         <div className="z-20 relative mt-8">
                             {displayGenres.map(genre => (
                                 <div key={genre.id} id={`genre-${genre.id}`}>
                                     <MovieRow
                                         genre={genre}
                                         movies={schedule.vaultMovies}
-                                        onMovieClick={handleMovieClick}
+                                        onMovieClick={(m) => setSelectedMovie(m)}
                                     />
                                 </div>
                             ))}
@@ -165,20 +189,18 @@ function App() {
                     </>
                 )}
 
-                {/* THE VAULT */}
                 {!searchQuery && activePage === 'movies' && (
                     <div className="pt-8">
-                        <MovieGrid title="The Vault" movies={schedule.vaultMovies} onMovieClick={handleMovieClick} />
+                        <MovieGrid title="The Vault" movies={schedule.vaultMovies} onMovieClick={(m) => setSelectedMovie(m)} />
                     </div>
                 )}
 
-                {/* RECENTLY ADDED */}
                 {!searchQuery && activePage === 'recent' && (
                     <div className="pt-8">
                         <MovieGrid 
                             title="Recently Added" 
                             movies={schedule.recentMovies} 
-                            onMovieClick={handleMovieClick} 
+                            onMovieClick={(m) => setSelectedMovie(m)} 
                         />
                          {schedule.recentMovies.length === 0 && (
                             <div className="text-center mt-20 px-6 text-slate-500">
@@ -188,13 +210,14 @@ function App() {
                     </div>
                 )}
 
-                {/* COMING SOON */}
                 {!searchQuery && activePage === 'popular' && (
                     <div className="pt-8">
                         <MovieGrid 
                             title="Coming Soon" 
                             movies={schedule.comingSoonMovies} 
-                            onMovieClick={() => {}} 
+                            // We disable clicking for Coming Soon, or let them click to see the poster?
+                            // Let's let them click to see details.
+                            onMovieClick={(m) => setSelectedMovie(m)} 
                         />
                         {schedule.comingSoonMovies.length === 0 && (
                             <div className="text-center mt-20 px-6 text-slate-500">
@@ -204,87 +227,30 @@ function App() {
                     </div>
                 )}
 
-                {/* ABOUT PAGE */}
                 {!searchQuery && activePage === 'about' && (
                     <div className="pt-24 px-6 md:px-20 max-w-4xl mx-auto text-slate-300 pb-20">
                         <h1 className="text-4xl md:text-5xl font-black italic mb-10 uppercase tracking-tighter text-white">
                             About <span className="text-red-600">Anreal Cinema</span>
                         </h1>
-                        
-                        <div className="space-y-12 text-lg leading-relaxed">
-                            <section>
-                                <p className="mb-4 text-xl text-white font-medium">
-                                    Anreal Cinema is a digital streaming archive focused on public-domain and copyright-expired films.
-                                </p>
-                                <p>
-                                    The platform provides legal access to classic motion pictures from the silent era through mid-20th-century cinema, including early horror, science fiction, drama, and documentary titles that are no longer under active copyright protection. Our goal is simple: to make historically significant films accessible in a modern viewing format.
-                                </p>
-                            </section>
-
-                            <section>
-                                <h3 className="text-2xl font-bold text-white mb-4 border-l-4 border-red-600 pl-4">AI-Driven Platform</h3>
-                                <p className="mb-4">
-                                    Anreal Cinema is operated primarily through automated systems. Approximately 99% of the platform is managed by artificial intelligence, including:
-                                </p>
-                                <ul className="list-disc pl-6 space-y-2 mb-4 text-slate-400">
-                                    <li>Film indexing and catalog organization</li>
-                                    <li>Metadata generation and search optimization</li>
-                                    <li>Video processing and formatting</li>
-                                    <li>Playback delivery and monitoring</li>
-                                    <li>Archival maintenance</li>
-                                </ul>
-                                <p>
-                                    Selected titles on the platform have undergone AI-assisted restoration, improving image stability, clarity, and audio balance while maintaining the integrity of the original material. No narrative, visual, or editorial modifications are introduced.
-                                </p>
-                            </section>
-
-                            <section>
-                                <h3 className="text-2xl font-bold text-white mb-4 border-l-4 border-red-600 pl-4">Film Sources and Restoration</h3>
-                                <p className="mb-4">
-                                    All films hosted on Anreal Cinema are verified to be:
-                                </p>
-                                <ul className="list-disc pl-6 space-y-2 mb-4 text-slate-400">
-                                    <li>In the public domain, or</li>
-                                    <li>Free of active copyright restrictions</li>
-                                </ul>
-                                <p>
-                                    Where available, original or historically accurate cuts are used. In some cases, enhanced versions are presented to improve viewing quality on modern displays.
-                                </p>
-                            </section>
-
-                            <section>
-                                <h3 className="text-2xl font-bold text-white mb-4 border-l-4 border-red-600 pl-4">Purpose</h3>
-                                <p className="mb-4">
-                                    Anreal Cinema is not a commercial streaming service and does not host newly released or licensed studio content. It exists as a preservation-focused archive intended for:
-                                </p>
-                                <ul className="list-disc pl-6 space-y-2 mb-4 text-slate-400">
-                                    <li>Education</li>
-                                    <li>Research</li>
-                                    <li>Historical reference</li>
-                                    <li>General public viewing</li>
-                                </ul>
-                                <p>
-                                    The platform is designed to operate quietly in the background, allowing the films themselves to remain the focus.
-                                </p>
-                            </section>
-
-                            <section className="bg-slate-900/50 p-6 rounded-lg border border-slate-800 mt-8">
-                                <h3 className="text-xl font-bold text-white mb-2">Legal Notice</h3>
-                                <p className="text-sm text-slate-500">
-                                    Copyright laws vary by jurisdiction. Public-domain status is evaluated using available records and U.S. copyright standards. If you believe a title has been listed incorrectly, please contact the site administrator for review.
-                                </p>
-                            </section>
+                        <p className="mb-4 text-xl text-white font-medium">
+                            Anreal Cinema is a digital streaming archive focused on public-domain and copyright-expired films.
+                        </p>
+                        <p>This platform is automated. New movies are unlocked from the archives every Sunday.</p>
+                        <div className="mt-8 p-6 bg-slate-900/50 rounded-lg border border-slate-800">
+                            <h3 className="text-xl font-bold text-white mb-2">Legal Notice</h3>
+                            <p className="text-sm text-slate-500">
+                                Copyright laws vary by jurisdiction. Public-domain status is evaluated using available records and U.S. copyright standards.
+                            </p>
                         </div>
                     </div>
                 )}
             </main>
 
-            {/* FOOTER */}
             <footer className="border-t border-white/5 py-16 px-6 md:px-20 mt-20 bg-slate-950/80 backdrop-blur-xl relative">
                 <div className="flex flex-col items-center gap-6">
                     <h2 className="text-3xl font-black italic uppercase tracking-tighter">ANREAL <span className="text-red-600">CINEMA</span></h2>
                     <p className="text-slate-400 text-sm">
-                        Powered by <a href="https://brubai.net/" target="_blank" rel="noopener noreferrer" className="text-red-500 font-bold hover:text-red-400 transition-colors">BRUB AI</a>
+                        Powered by <a href="https://brubai.net/" className="text-red-500 font-bold">BRUB AI</a>
                     </p>
                 </div>
             </footer>
