@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Film, Calendar, Info, Menu, X } from 'lucide-react';
+import { Search, Film, Calendar, Info, Menu, X, Sparkles } from 'lucide-react';
 
 const Navbar = ({ activePage, setActivePage, onSearch }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -7,9 +7,10 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
 
   const navItems = [
     { id: 'home', label: 'Home', icon: null },
+    { id: 'recent', label: 'Recently Added', icon: Sparkles }, // NEW TAB
     { id: 'movies', label: 'The Vault', icon: Film },
     { id: 'popular', label: 'Coming Soon', icon: Calendar },
-    { id: 'about', label: 'About', icon: Info }, // This points to the new page
+    { id: 'about', label: 'About', icon: Info },
   ];
 
   return (
@@ -33,10 +34,11 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
             <button
               key={item.id}
               onClick={() => setActivePage(item.id)}
-              className={`text-sm font-bold uppercase tracking-widest transition-colors hover:text-red-500 ${
+              className={`text-sm font-bold uppercase tracking-widest transition-colors flex items-center gap-2 hover:text-red-500 ${
                 activePage === item.id ? 'text-white' : 'text-slate-400'
               }`}
             >
+              {item.icon && <item.icon className="w-4 h-4" />}
               {item.label}
             </button>
           ))}
@@ -77,8 +79,9 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
                 setActivePage(item.id);
                 setIsMenuOpen(false);
               }}
-              className="text-2xl font-bold uppercase tracking-widest text-white hover:text-red-500"
+              className="text-2xl font-bold uppercase tracking-widest text-white hover:text-red-500 flex items-center gap-3"
             >
+              {item.icon && <item.icon className="w-6 h-6" />}
               {item.label}
             </button>
           ))}
