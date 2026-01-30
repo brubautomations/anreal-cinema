@@ -9,23 +9,11 @@ import { GENRES } from './config/GenreConfig';
 import allMovies from './data/movies.json'; 
 
 // --- CONFIGURATION ---
-const START_DATE = new Date('2026-02-01T06:00:00'); 
+// This is the date the "Cycle" started.
+// We set it to a past date so the logic starts counting weeks immediately.
+const CYCLE_START_DATE = new Date('2024-01-28T06:00:00'); 
 const BATCH_SIZE = 50;
 const INITIAL_VAULT_SIZE = 500; 
-
-// Helper: Calculate the date string for the next upcoming Sunday
-const getNextDropDate = () => {
-    const d = new Date();
-    // Calculate days until next Sunday (0 = Sunday)
-    const daysUntilSunday = (7 - d.getDay()) % 7;
-    d.setDate(d.getDate() + daysUntilSunday);
-    
-    // If today is Sunday and it's past 6am, the "Next" drop is NEXT week's Sunday
-    if (d.getDay() === 0 && d.getHours() >= 6) {
-         d.setDate(d.getDate() + 7);
-    }
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
 
 function App() {
     const [selectedMovie, setSelectedMovie] = useState(null);
@@ -33,43 +21,30 @@ function App() {
     const [activePage, setActivePage] = useState('home');
     const [searchQuery, setSearchQuery] = useState('');
 
-    const nextDropDateString = getNextDropDate();
-
     // --- AUTOMATION LOGIC ---
     const getSchedule = () => {
         const now = new Date();
         const msPerWeek = 7 * 24 * 60 * 60 * 1000;
         
-        let vaultMovies = [];
-        let recentMovies = [];
-        let comingSoonMovies = [];
+        // How many full weeks have passed since we started?
+        const weeksPassed = Math.floor((now.getTime() - CYCLE_START_DATE.getTime()) / msPerWeek);
+        
+        // 1. THE VAULT (Permanent Collection)
+        // Contains the original 500 + all old "Recently Added" batches
+        const vaultCutoff = INITIAL_VAULT_SIZE + (weeksPassed * BATCH_SIZE);
+        const vaultMovies = allMovies.slice(0, vaultCutoff);
 
-        // SCENARIO 1: PRE-LAUNCH (Before Feb 1)
-        if (now < START_DATE) {
-            // Vault = First 500
-            vaultMovies = allMovies.slice(0, INITIAL_VAULT_SIZE);
-            // Recent = Empty
-            recentMovies = []; 
-            // Coming Soon = 501-550
-            comingSoonMovies = allMovies.slice(INITIAL_VAULT_SIZE, INITIAL_VAULT_SIZE + BATCH_SIZE);
-        } 
-        // SCENARIO 2: LIVE (Feb 1 or later)
-        else {
-            const timeDiff = now.getTime() - START_DATE.getTime();
-            const weeksPassed = Math.floor(timeDiff / msPerWeek);
-            
-            // The Vault grows by 50 every week
-            const currentVaultSize = INITIAL_VAULT_SIZE + (weeksPassed * BATCH_SIZE);
-            
-            // 1. Vault
-            vaultMovies = allMovies.slice(0, currentVaultSize);
+        // 2. RECENTLY ADDED (This Week's Fresh Batch)
+        // This is the batch that "Just Arrived" this Sunday
+        const recentStart = vaultCutoff;
+        const recentEnd = vaultCutoff + BATCH_SIZE;
+        const recentMovies = allMovies.slice(recentStart, recentEnd);
 
-            // 2. Recently Added
-            recentMovies = allMovies.slice(currentVaultSize, currentVaultSize + BATCH_SIZE);
-
-            // 3. Coming Soon
-            comingSoonMovies = allMovies.slice(currentVaultSize + BATCH_SIZE, currentVaultSize + (BATCH_SIZE * 2));
-        }
+        // 3. COMING SOON (Next Week's Batch)
+        // This is the batch waiting for NEXT Sunday
+        const comingSoonStart = recentEnd;
+        const comingSoonEnd = recentEnd + BATCH_SIZE;
+        const comingSoonMovies = allMovies.slice(comingSoonStart, comingSoonEnd);
 
         return { vaultMovies, recentMovies, comingSoonMovies };
     };
@@ -182,11 +157,8 @@ function App() {
                             onMovieClick={handleMovieClick} 
                         />
                          {schedule.recentMovies.length === 0 && (
-                            <div className="text-center mt-20 px-6">
-                                <h2 className="text-2xl font-bold text-slate-400 mb-2">The Vault is Sealed.</h2>
-                                <p className="text-slate-500">
-                                    The first batch of new restorations arrives <strong>Sunday, {nextDropDateString} at 6:00 AM</strong>.
-                                </p>
+                            <div className="text-center mt-20 px-6 text-slate-500">
+                                No movies in this batch yet.
                             </div>
                         )}
                     </div>
@@ -201,12 +173,8 @@ function App() {
                             onMovieClick={() => {}} 
                         />
                         {schedule.comingSoonMovies.length === 0 && (
-                            <div className="text-center mt-20 px-6">
-                                <h2 className="text-2xl font-bold text-slate-400 mb-2">Shhh...</h2>
-                                <p className="text-slate-500">
-                                    The next batch is being prepared.<br/>
-                                    Check back <strong>Sunday at 6:00 AM</strong> for the reveal.
-                                </p>
+                            <div className="text-center mt-20 px-6 text-slate-500">
+                                No upcoming movies scheduled.
                             </div>
                         )}
                     </div>
