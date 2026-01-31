@@ -1,106 +1,119 @@
 import React, { useState } from 'react';
-import { Search, Film, Calendar, Info, Menu, X, Sparkles } from 'lucide-react';
+import { Menu, X, Search, Film } from 'lucide-react';
 
 const Navbar = ({ activePage, setActivePage, onSearch }) => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [localSearch, setLocalSearch] = useState('');
 
-  const navItems = [
-    { id: 'home', label: 'Home', icon: null },
-    { id: 'movies', label: 'The Vault', icon: Film },
-    { id: 'recent', label: 'Recently Added', icon: Sparkles },
-    { id: 'popular', label: 'Coming Soon', icon: Calendar },
-    { id: 'about', label: 'About', icon: Info }, // Label handled via custom logic below
-  ];
+    const handleNavClick = (page) => {
+        setActivePage(page);
+        setIsMenuOpen(false); // Close menu after clicking
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
-  return (
-    <nav className="fixed top-0 w-full z-50 bg-gradient-to-b from-slate-950/90 to-transparent backdrop-blur-sm border-b border-white/5 transition-all duration-300">
-      <div className="px-6 md:px-12 py-4 flex items-center justify-between">
-        
-        {/* LOGO */}
-        <div 
-          className="flex items-center gap-2 cursor-pointer z-50" 
-          onClick={() => setActivePage('home')}
-        >
-          <Film className="w-8 h-8 text-red-600" />
-          <span className="text-2xl font-black italic tracking-tighter text-white">
-            ANREAL <span className="text-red-600">CINEMA</span>
-          </span>
-        </div>
+    const handleSearchSubmit = (e) => {
+        e.preventDefault();
+        onSearch(localSearch);
+        setIsMenuOpen(false);
+    };
 
-        {/* DESKTOP NAV */}
-        <div className="hidden md:flex items-center gap-8">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActivePage(item.id)}
-              className={`text-sm font-bold uppercase tracking-widest transition-colors flex items-center gap-2 hover:text-red-500 ${
-                activePage === item.id ? 'text-white' : 'text-slate-400'
-              }`}
-            >
-              {item.icon && <item.icon className="w-4 h-4" />}
-              
-              {/* SPECIAL LOGIC FOR ABOUT TAB */}
-              {item.id === 'about' ? (
-                <span>
-                  ABOUT <span className="text-red-600">ANREAL</span>
-                </span>
-              ) : (
-                item.label
-              )}
-            </button>
-          ))}
-        </div>
+    return (
+        <nav className="fixed top-0 w-full z-50 bg-slate-950/90 backdrop-blur-md border-b border-white/10">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between h-16">
+                    
+                    {/* LOGO */}
+                    <div 
+                        className="flex items-center gap-2 cursor-pointer" 
+                        onClick={() => handleNavClick('home')}
+                    >
+                        <Film className="w-8 h-8 text-red-600" />
+                        <span className="text-xl font-black tracking-tighter italic">
+                            ANREAL <span className="text-red-600">CINEMA</span>
+                        </span>
+                    </div>
 
-        {/* SEARCH BAR */}
-        <div className="flex items-center gap-4 z-50">
-          <div className={`flex items-center transition-all duration-300 ${isSearchOpen ? 'bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700' : ''}`}>
-            <Search 
-              className="w-5 h-5 text-slate-300 cursor-pointer hover:text-white" 
-              onClick={() => setIsSearchOpen(!isSearchOpen)}
-            />
-            <input 
-              type="text"
-              placeholder="Search titles..."
-              className={`bg-transparent border-none outline-none text-white text-sm ml-2 transition-all duration-300 ${isSearchOpen ? 'w-48 opacity-100' : 'w-0 opacity-0'}`}
-              onChange={(e) => onSearch && onSearch(e.target.value)}
-            />
-          </div>
+                    {/* DESKTOP MENU (Hidden on Mobile) */}
+                    <div className="hidden md:flex items-center space-x-8">
+                        {['home', 'movies', 'recent', 'popular', 'about'].map((page) => (
+                            <button
+                                key={page}
+                                onClick={() => handleNavClick(page)}
+                                className={`text-sm font-bold uppercase tracking-widest hover:text-red-500 transition-colors ${
+                                    activePage === page ? 'text-red-600' : 'text-slate-300'
+                                }`}
+                            >
+                                {page === 'home' ? 'Home' : 
+                                 page === 'movies' ? 'The Vault' :
+                                 page === 'recent' ? 'Recently Added' :
+                                 page === 'popular' ? 'Coming Soon' : 'About'}
+                            </button>
+                        ))}
+                    </div>
 
-          {/* MOBILE MENU TOGGLE */}
-          <button 
-            className="md:hidden text-white"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-          >
-            {isMenuOpen ? <X /> : <Menu />}
-          </button>
-        </div>
-      </div>
+                    {/* SEARCH BAR (Desktop) */}
+                    <div className="hidden md:block">
+                        <form onSubmit={handleSearchSubmit} className="relative">
+                            <input
+                                type="text"
+                                placeholder="Search archives..."
+                                className="bg-slate-900 border border-slate-700 rounded-full py-1 px-4 text-sm focus:outline-none focus:border-red-600 w-64 transition-all"
+                                value={localSearch}
+                                onChange={(e) => setLocalSearch(e.target.value)}
+                            />
+                            <Search className="w-4 h-4 text-slate-500 absolute right-3 top-2" />
+                        </form>
+                    </div>
 
-      {/* MOBILE MENU OVERLAY */}
-      {isMenuOpen && (
-        <div className="fixed inset-0 bg-slate-950 z-40 flex flex-col items-center justify-center gap-8 md:hidden">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                setActivePage(item.id);
-                setIsMenuOpen(false);
-              }}
-              className="text-2xl font-bold uppercase tracking-widest text-white hover:text-red-500 flex items-center gap-3"
-            >
-              {item.icon && <item.icon className="w-6 h-6" />}
-              {item.id === 'about' ? (
-                <span>ABOUT <span className="text-red-600">ANREAL</span></span>
-              ) : (
-                item.label
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-    </nav>
-  );
+                    {/* MOBILE MENU BUTTON (Visible only on Mobile) */}
+                    <div className="md:hidden">
+                        <button 
+                            onClick={() => setIsMenuOpen(!isMenuOpen)}
+                            className="text-slate-300 hover:text-white p-2"
+                        >
+                            {isMenuOpen ? <X size={28} /> : <Menu size={28} />}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* MOBILE DROPDOWN MENU */}
+            {isMenuOpen && (
+                <div className="md:hidden bg-slate-950 border-b border-white/10">
+                    <div className="px-4 pt-2 pb-4 space-y-2">
+                        {['home', 'movies', 'recent', 'popular', 'about'].map((page) => (
+                            <button
+                                key={page}
+                                onClick={() => handleNavClick(page)}
+                                className={`block w-full text-left px-3 py-3 rounded-md text-base font-bold uppercase tracking-wider ${
+                                    activePage === page ? 'bg-red-600/10 text-red-500' : 'text-slate-300 hover:bg-slate-900'
+                                }`}
+                            >
+                                {page === 'home' ? 'Home' : 
+                                 page === 'movies' ? 'The Vault' :
+                                 page === 'recent' ? 'Recently Added' :
+                                 page === 'popular' ? 'Coming Soon' : 'About'}
+                            </button>
+                        ))}
+                        
+                        {/* Mobile Search */}
+                        <form onSubmit={handleSearchSubmit} className="mt-4 pb-2 relative">
+                            <input
+                                type="text"
+                                placeholder="Search movies..."
+                                className="w-full bg-slate-900 border border-slate-700 rounded-lg py-3 px-4 text-white focus:border-red-600"
+                                value={localSearch}
+                                onChange={(e) => setLocalSearch(e.target.value)}
+                            />
+                            <button type="submit" className="absolute right-3 top-3.5">
+                                <Search className="w-5 h-5 text-slate-400" />
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </nav>
+    );
 };
 
 export default Navbar;
