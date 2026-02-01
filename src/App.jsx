@@ -35,44 +35,42 @@ function App() {
         const now = new Date();
         const msPerWeek = 7 * 24 * 60 * 60 * 1000;
 
-        // Helper: Cleans up data
+        // Helper: Standardize movie data
         const sanitize = (list) => list.map(m => ({
             ...m,
             id: m.id || Math.random().toString(36).substr(2, 9),
             poster: m.poster || m.image, 
+            image: m.image || m.poster, // Ensure both exist
             videoUrl: m.videoUrl || "/banner.mp4"
         }));
 
         let vault = [];
         let recent = [];
         let comingSoon = [];
-        // Originals are never locked
         let originals = sanitize(originalsData).map(m => ({ ...m, isComingSoon: false })); 
 
         // SCENARIO 1: PRE-LAUNCH (Before Feb 1)
         if (now < START_DATE) {
             vault = sanitize(vaultMoviesData).map(m => ({ ...m, isComingSoon: false }));
             recent = []; 
-            // Force Coming Soon to be locked
             comingSoon = sanitize(comingSoonData.slice(0, BATCH_SIZE)).map(m => ({ ...m, isComingSoon: true })); 
         } 
         // SCENARIO 2: LIVE CYCLE (Sunday Feb 1 onwards)
         else {
             const weeksPassed = Math.floor((now.getTime() - START_DATE.getTime()) / msPerWeek);
             
-            // 1. VAULT (Unlocked)
+            // 1. VAULT
             const vaultFromNewData = comingSoonData.slice(0, weeksPassed * BATCH_SIZE);
             const combinedVault = [...vaultMoviesData, ...vaultFromNewData];
             vault = sanitize(combinedVault).map(m => ({ ...m, isComingSoon: false }));
 
-            // 2. RECENTLY ADDED (Unlocked - THIS IS THE FIX)
+            // 2. RECENTLY ADDED
             const recentStart = weeksPassed * BATCH_SIZE;
             const recentEnd = recentStart + BATCH_SIZE;
             const recentRaw = comingSoonData.slice(recentStart, recentEnd);
-            // We force isComingSoon to FALSE here so they play
             recent = sanitize(recentRaw).map(m => ({ ...m, isComingSoon: false }));
 
-            // 3. COMING SOON (Locked)
+            // 3. COMING SOON
             const comingSoonStart = recentEnd;
             const comingSoonEnd = comingSoonStart + BATCH_SIZE;
             const comingSoonRaw = comingSoonData.slice(comingSoonStart, comingSoonEnd);
@@ -87,7 +85,11 @@ function App() {
         const rawSchedule = getRawSchedule();
         
         const fetchPoster = async (movie) => {
-            if (movie.poster && movie.poster.includes('tmdb.org')) return movie;
+            // Check if we already have a TMDB link in either field
+            const hasTMDB = (movie.poster && movie.poster.includes('tmdb.org')) || 
+                           (movie.image && movie.image.includes('tmdb.org'));
+            
+            if (hasTMDB) return movie;
 
             try {
                 const response = await fetch(
@@ -97,9 +99,13 @@ function App() {
                 
                 if (data.results && data.results.length > 0) {
                     const hit = data.results[0];
+                    const hdPoster = `https://image.tmdb.org/t/p/w500${hit.poster_path}`;
+                    
                     return {
                         ...movie,
-                        poster: `https://image.tmdb.org/t/p/w500${hit.poster_path}`,
+                        poster: hdPoster,   // Update standard field
+                        image: hdPoster,    // Update legacy field (This fixes your bug)
+                        backdrop: `https://image.tmdb.org/t/p/original${hit.backdrop_path}`, // Bonus: HD Background
                         overview: hit.overview || movie.description,
                         releaseDate: hit.release_date
                     };
@@ -111,6 +117,7 @@ function App() {
         };
 
         const enrichMovies = async () => {
+            // Fetch for Recent and Coming Soon
             const enrichedRecent = await Promise.all(rawSchedule.recent.map(fetchPoster));
             const enrichedComingSoon = await Promise.all(rawSchedule.comingSoon.map(fetchPoster));
 
@@ -118,7 +125,7 @@ function App() {
                 vaultMovies: rawSchedule.vault,
                 recentMovies: enrichedRecent,
                 comingSoonMovies: enrichedComingSoon,
-                originalMovies: rawSchedule.originals
+                originalMovies: rawSchedule.originalMovies
             });
         };
 
