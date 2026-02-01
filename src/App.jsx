@@ -4,7 +4,7 @@ import Hero from './components/Hero';
 import MovieModal from './components/MovieModal';
 import GenreBar from './components/GenreBar';
 import MovieGrid from './components/MovieGrid';
-import SmartMovieCard from './components/SmartMovieCard';
+import SmartMovieCard from './components/SmartMovieCard'; // <--- MAKE SURE THIS FILE EXISTS
 import { GENRES } from './config/GenreConfig';
 
 // --- DATA IMPORTS ---
@@ -35,12 +35,23 @@ function App() {
         originalMovies: [] 
     });
 
-    // --- 0. LOAD USER DATA ---
+    // --- 0. SAFELY LOAD USER DATA ---
     const loadUserData = () => {
-        const list = JSON.parse(localStorage.getItem('anreal_mylist') || '[]');
-        const progress = JSON.parse(localStorage.getItem('anreal_progress') || '{}');
-        setMyList(list);
-        setWatchProgress(progress);
+        try {
+            const listRaw = localStorage.getItem('anreal_mylist');
+            const progressRaw = localStorage.getItem('anreal_progress');
+            
+            const list = listRaw ? JSON.parse(listRaw) : [];
+            const progress = progressRaw ? JSON.parse(progressRaw) : {};
+            
+            setMyList(list);
+            setWatchProgress(progress);
+        } catch (error) {
+            console.error("Error loading user data:", error);
+            // If data is corrupt, reset it to prevent crash
+            localStorage.setItem('anreal_mylist', '[]');
+            localStorage.setItem('anreal_progress', '{}');
+        }
     };
 
     useEffect(() => {
@@ -50,7 +61,7 @@ function App() {
     }, []);
 
     const toggleMyList = (movie) => {
-        const currentList = JSON.parse(localStorage.getItem('anreal_mylist') || '[]');
+        const currentList = [...myList];
         const exists = currentList.find(m => m.id === movie.id);
         let newList;
         if (exists) {
@@ -76,7 +87,8 @@ function App() {
             })));
 
             let vault = [], recent = [], comingSoon = [];
-            let originals = sanitize(originalsData).map(m => ({ ...m, isComingSoon: false })); 
+            // Handle missing originals file gracefully
+            let originals = originalsData ? sanitize(originalsData).map(m => ({ ...m, isComingSoon: false })) : [];
 
             if (now < START_DATE) {
                 vault = sanitize(vaultMoviesData).map(m => ({ ...m, isComingSoon: false }));
@@ -133,7 +145,6 @@ function App() {
 
     // --- RENDERING HELPERS ---
     
-    // Get "Continue Watching" movies
     const continueWatchingMovies = [...schedule.vaultMovies, ...schedule.recentMovies, ...schedule.originalMovies]
         .filter(m => {
             const prog = watchProgress[m.id];
@@ -163,7 +174,6 @@ function App() {
         );
     };
 
-    // Combine for search
     const allSearchable = [...schedule.vaultMovies, ...schedule.recentMovies, ...schedule.comingSoonMovies, ...schedule.originalMovies];
     const searchResults = searchQuery ? allSearchable.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
@@ -188,16 +198,9 @@ function App() {
                             <>
                                 <Hero onRandomWatch={() => {}} />
                                 <div className="z-20 relative mt-[-100px] md:mt-[-150px] pb-20">
-                                    {/* 1. CONTINUE WATCHING ROW */}
                                     {continueWatchingMovies.length > 0 && renderMovieRow("Continue Watching", continueWatchingMovies)}
-                                    
-                                    {/* 2. RECENTLY ADDED */}
                                     {renderMovieRow("Recently Added", schedule.recentMovies)}
-
-                                    {/* 3. ORIGINALS */}
                                     {renderMovieRow("Anreal Originals", schedule.originalMovies)}
-
-                                    {/* 4. GENRE ROWS */}
                                     {GENRES.slice(0, 5).map(genre => (
                                         renderMovieRow(genre.name, schedule.vaultMovies.filter(m => {
                                             if (!m.topics) return false;
@@ -271,41 +274,9 @@ function App() {
                                 <h1 className="text-4xl md:text-5xl font-black italic mb-10 uppercase tracking-tighter text-white">
                                     About <span className="text-red-600">Anreal Cinema</span>
                                 </h1>
-                                
                                 <div className="space-y-12 text-lg leading-relaxed">
-                                    <section>
-                                        <p className="mb-4 text-xl text-white font-medium">
-                                            Anreal Cinema is a digital streaming archive focused on public-domain and copyright-expired films.
-                                        </p>
-                                        <p>
-                                            The platform provides legal access to classic motion pictures from the silent era through mid-20th-century cinema, including early horror, science fiction, drama, and documentary titles that are no longer under active copyright protection. Our goal is simple: to make historically significant films accessible in a modern viewing format.
-                                        </p>
-                                    </section>
-                                    <section>
-                                        <h3 className="text-2xl font-bold text-white mb-4 border-l-4 border-red-600 pl-4">AI-Driven Platform</h3>
-                                        <p className="mb-4">
-                                            Anreal Cinema is operated primarily through automated systems. Approximately 99% of the platform is managed by artificial intelligence, including:
-                                        </p>
-                                        <ul className="list-disc pl-6 space-y-2 mb-4 text-slate-400">
-                                            <li>Film indexing and catalog organization</li>
-                                            <li>Metadata generation and search optimization</li>
-                                            <li>Video processing and formatting</li>
-                                            <li>Playback delivery and monitoring</li>
-                                            <li>Archival maintenance</li>
-                                        </ul>
-                                    </section>
-                                    <section>
-                                        <h3 className="text-2xl font-bold text-white mb-4 border-l-4 border-red-600 pl-4">Film Sources and Restoration</h3>
-                                        <p className="mb-4">
-                                            All films hosted on Anreal Cinema are verified to be In the public domain or Free of active copyright restrictions.
-                                        </p>
-                                    </section>
-                                    <section className="bg-slate-900/50 p-6 rounded-lg border border-slate-800 mt-8">
-                                        <h3 className="text-xl font-bold text-white mb-2">Legal Notice</h3>
-                                        <p className="text-sm text-slate-500">
-                                            Copyright laws vary by jurisdiction. Public-domain status is evaluated using available records and U.S. copyright standards.
-                                        </p>
-                                    </section>
+                                    <p className="mb-4 text-xl text-white font-medium">Anreal Cinema is a digital streaming archive focused on public-domain and copyright-expired films.</p>
+                                    <p>This platform is automated. New movies are unlocked from the archives every Sunday.</p>
                                 </div>
                             </div>
                         )}
@@ -317,7 +288,7 @@ function App() {
                 <div className="flex flex-col items-center gap-6">
                     <h2 className="text-3xl font-black italic uppercase tracking-tighter">ANREAL <span className="text-red-600">CINEMA</span></h2>
                     <p className="text-slate-400 text-sm">
-                        Powered by <a href="https://brubai.net/" target="_blank" rel="noopener noreferrer" className="text-red-500 font-bold hover:text-red-400 transition-colors">BRUB AI</a>
+                        Powered by <a href="https://brubai.net/" className="text-red-500 font-bold">BRUB AI</a>
                     </p>
                 </div>
             </footer>
