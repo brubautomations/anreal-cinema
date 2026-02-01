@@ -11,12 +11,27 @@ const MovieRow = ({ genre, movies, onMovieClick }) => {
         }
     };
 
-    if (!movies || movies.length === 0) return null;
+    // Robust filter to prevent crashes
+    const genreMovies = movies.filter(movie => {
+        if (!movie.topics) return false;
+        const topics = Array.isArray(movie.topics) 
+            ? movie.topics 
+            : movie.topics.split(',').map(t => t.trim());
+        return topics.some(t => t.toLowerCase() === genre.id.toLowerCase());
+    });
+
+    // Handle "Custom" rows (like Recently Added)
+    const moviesToRender = genre.id === 'custom' ? movies : genreMovies;
+
+    if (moviesToRender.length === 0) return null;
 
     return (
         <div className="mb-8 group relative px-4 md:px-12">
             <h2 className="text-xl md:text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                {genre.name}
+                {genre.name || genre.title}
+                <span className="text-xs font-normal text-slate-500 ml-2 uppercase tracking-wider border border-slate-700 px-2 py-0.5 rounded">
+                    {moviesToRender.length}
+                </span>
             </h2>
 
             <button 
@@ -31,7 +46,7 @@ const MovieRow = ({ genre, movies, onMovieClick }) => {
                 className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 scroll-smooth"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
-                {movies.map((movie) => (
+                {moviesToRender.map((movie) => (
                     <div key={movie.id} className="flex-none">
                         <MovieCard movie={movie} onClick={onMovieClick} />
                     </div>
