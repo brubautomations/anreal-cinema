@@ -1,0 +1,10 @@
+[
+  {
+    "id": "indie_01",
+    "title": "The Silent City",
+    "description": "An exclusive indie sci-fi short film about a city with no sound.",
+    "poster": "https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?auto=format&fit=crop&w=500&q=60",
+    "videoUrl": "/banner.mp4", 
+    "isOriginal": true
+  }
+]
