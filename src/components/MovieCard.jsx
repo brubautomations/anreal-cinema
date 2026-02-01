@@ -5,15 +5,18 @@ const MovieCard = ({ movie, onClick }) => {
     const [imgError, setImgError] = useState(false);
     const isComingSoon = movie.isComingSoon;
 
+    // Check if poster string exists and is long enough to be a URL
+    const hasImage = movie.poster && movie.poster.length > 10;
+
     return (
         <div 
             onClick={() => !isComingSoon && onClick(movie)}
-            className={`relative flex-none w-44 md:w-72 aspect-[2/3] group cursor-pointer overflow-hidden rounded-md transition-all duration-500 hover:z-10 shadow-lg bg-slate-900 select-none ${
-                isComingSoon ? 'grayscale-[0.8] cursor-not-allowed opacity-60 hover:scale-100' : 'hover:scale-105'
+            className={`relative flex-none w-44 md:w-72 aspect-[2/3] group cursor-pointer overflow-hidden rounded-md transition-all duration-500 shadow-lg bg-slate-900 select-none ${
+                isComingSoon ? 'grayscale-[0.8] cursor-not-allowed opacity-80 hover:scale-100' : 'hover:scale-105 hover:z-10'
             }`}
         >
-            {imgError ? (
-                // FALLBACK if image is broken
+            {/* IMAGE FALLBACK LOGIC */}
+            {imgError || !hasImage ? (
                 <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-950 flex flex-col items-center justify-center p-6 text-center border border-white/5">
                     <Film className="w-12 h-12 text-red-600/40 mb-3" />
                     <h3 className="text-white font-black text-xs md:text-sm uppercase italic tracking-tighter line-clamp-3">
@@ -37,7 +40,7 @@ const MovieCard = ({ movie, onClick }) => {
                             <Lock className="w-4 h-4" /> Locked
                         </div>
                         <h3 className="text-white font-bold text-sm md:text-lg leading-tight">{movie.title}</h3>
-                        <p className="text-[10px] text-slate-400">Scheduled for Ingestion</p>
+                        <p className="text-[10px] text-slate-400">Available Sunday</p>
                     </div>
                 ) : (
                     <>
@@ -52,14 +55,8 @@ const MovieCard = ({ movie, onClick }) => {
                 )}
             </div>
 
-            {/* Badges */}
-            {!isComingSoon && (
-                <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded text-[10px] text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">
-                    HD
-                </div>
-            )}
             {isComingSoon && (
-                <div className="absolute top-2 right-2 bg-red-600/90 border border-white/10 px-2 py-1 rounded text-[8px] font-bold uppercase tracking-widest text-white">
+                <div className="absolute top-2 right-2 bg-red-600/90 border border-white/10 px-2 py-1 rounded text-[8px] font-bold uppercase tracking-widest text-white z-20">
                     Soon
                 </div>
             )}

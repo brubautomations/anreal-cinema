@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Calendar, HardDrive, Tag, Info } from 'lucide-react';
+import { X, Calendar, Tag, Info } from 'lucide-react';
 
 const MovieModal = ({ movie, onClose }) => {
     if (!movie) return null;
@@ -24,7 +24,7 @@ const MovieModal = ({ movie, onClose }) => {
 
             <div className="flex-1 flex flex-col items-center max-w-6xl mx-auto w-full py-8 px-4">
                 
-                {/* VIDEO PLAYER (The Fix: Using iframe for Archive.org embeds) */}
+                {/* VIDEO PLAYER (Fixed to play Archive.org embeds) */}
                 <div className="relative w-full aspect-video bg-slate-900 rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10 mb-10">
                     <iframe 
                         src={movie.embedUrl || movie.videoUrl} 
@@ -42,6 +42,7 @@ const MovieModal = ({ movie, onClose }) => {
                             {movie.title}
                         </h2>
                         
+                        {/* REMOVED DOWNLOAD COUNT HERE */}
                         <div className="flex flex-wrap items-center gap-6 text-sm md:text-base font-semibold text-slate-400 bg-white/5 py-4 px-6 rounded-2xl border border-white/5">
                             <div className="flex items-center gap-2">
                                 <Calendar className="w-4 h-4 text-red-600" />
@@ -51,10 +52,6 @@ const MovieModal = ({ movie, onClose }) => {
                                 <Tag className="w-4 h-4 text-red-600" />
                                 <span className="text-white">Topics:</span> 
                                 {Array.isArray(movie.topics) ? movie.topics.join(", ") : (movie.topics || "Classic")}
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <HardDrive className="w-4 h-4 text-red-600" />
-                                <span className="text-white">Downloads:</span> {Math.round(movie.downloads / 1000)}k
                             </div>
                         </div>
                     </div>
