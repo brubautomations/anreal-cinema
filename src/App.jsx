@@ -23,11 +23,12 @@ function App() {
     const [activePage, setActivePage] = useState('home');
     const [searchQuery, setSearchQuery] = useState('');
     
+    // Initialize all arrays to avoid crashes
     const [schedule, setSchedule] = useState({
         vaultMovies: [],
         recentMovies: [],
         comingSoonMovies: [],
-        originalMovies: []
+        originalMovies: [] 
     });
 
     // --- 1. THE AUTOMATION ENGINE ---
@@ -36,17 +37,21 @@ function App() {
         const msPerWeek = 7 * 24 * 60 * 60 * 1000;
 
         // Helper: Standardize movie data
-        const sanitize = (list) => list.map(m => ({
-            ...m,
-            id: m.id || Math.random().toString(36).substr(2, 9),
-            poster: m.poster || m.image, 
-            image: m.image || m.poster, // Ensure both exist
-            videoUrl: m.videoUrl || "/banner.mp4"
-        }));
+        const sanitize = (list) => {
+            if (!list) return []; // Safety check
+            return list.map(m => ({
+                ...m,
+                id: m.id || Math.random().toString(36).substr(2, 9),
+                poster: m.poster || m.image, 
+                image: m.image || m.poster, 
+                videoUrl: m.videoUrl || "/banner.mp4"
+            }));
+        };
 
         let vault = [];
         let recent = [];
         let comingSoon = [];
+        // Originals are never locked
         let originals = sanitize(originalsData).map(m => ({ ...m, isComingSoon: false })); 
 
         // SCENARIO 1: PRE-LAUNCH (Before Feb 1)
@@ -77,7 +82,8 @@ function App() {
             comingSoon = sanitize(comingSoonRaw).map(m => ({ ...m, isComingSoon: true }));
         }
 
-        return { vault, recent, comingSoon, originals };
+        // *** THE FIX IS HERE: returning 'originalMovies' key correctly ***
+        return { vault, recent, comingSoon, originalMovies: originals };
     };
 
     // --- 2. THE API FETCHING ENGINE ---
@@ -85,7 +91,6 @@ function App() {
         const rawSchedule = getRawSchedule();
         
         const fetchPoster = async (movie) => {
-            // Check if we already have a TMDB link in either field
             const hasTMDB = (movie.poster && movie.poster.includes('tmdb.org')) || 
                            (movie.image && movie.image.includes('tmdb.org'));
             
@@ -103,9 +108,9 @@ function App() {
                     
                     return {
                         ...movie,
-                        poster: hdPoster,   // Update standard field
-                        image: hdPoster,    // Update legacy field (This fixes your bug)
-                        backdrop: `https://image.tmdb.org/t/p/original${hit.backdrop_path}`, // Bonus: HD Background
+                        poster: hdPoster,   
+                        image: hdPoster,    
+                        backdrop: `https://image.tmdb.org/t/p/original${hit.backdrop_path}`,
                         overview: hit.overview || movie.description,
                         releaseDate: hit.release_date
                     };
@@ -117,7 +122,6 @@ function App() {
         };
 
         const enrichMovies = async () => {
-            // Fetch for Recent and Coming Soon
             const enrichedRecent = await Promise.all(rawSchedule.recent.map(fetchPoster));
             const enrichedComingSoon = await Promise.all(rawSchedule.comingSoon.map(fetchPoster));
 
@@ -125,7 +129,7 @@ function App() {
                 vaultMovies: rawSchedule.vault,
                 recentMovies: enrichedRecent,
                 comingSoonMovies: enrichedComingSoon,
-                originalMovies: rawSchedule.originalMovies
+                originalMovies: rawSchedule.originalMovies // This will now work
             });
         };
 
@@ -165,11 +169,12 @@ function App() {
         }
     };
 
+    // Safe spread operator with fallback to empty arrays
     const allSearchableMovies = [
-        ...schedule.vaultMovies, 
-        ...schedule.recentMovies, 
-        ...schedule.comingSoonMovies,
-        ...schedule.originalMovies
+        ...(schedule.vaultMovies || []), 
+        ...(schedule.recentMovies || []), 
+        ...(schedule.comingSoonMovies || []),
+        ...(schedule.originalMovies || [])
     ];
     
     const searchResults = searchQuery 
