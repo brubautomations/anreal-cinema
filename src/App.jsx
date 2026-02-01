@@ -4,7 +4,7 @@ import Hero from './components/Hero';
 import MovieModal from './components/MovieModal';
 import GenreBar from './components/GenreBar';
 import MovieGrid from './components/MovieGrid';
-import SmartMovieCard from './components/SmartMovieCard'; // <--- MAKE SURE THIS FILE EXISTS
+import SmartMovieCard from './components/SmartMovieCard'; 
 import { GENRES } from './config/GenreConfig';
 
 // --- DATA IMPORTS ---
@@ -48,7 +48,6 @@ function App() {
             setWatchProgress(progress);
         } catch (error) {
             console.error("Error loading user data:", error);
-            // If data is corrupt, reset it to prevent crash
             localStorage.setItem('anreal_mylist', '[]');
             localStorage.setItem('anreal_progress', '{}');
         }
@@ -145,6 +144,31 @@ function App() {
 
     // --- RENDERING HELPERS ---
     
+    // MISSING FUNCTION FIXED HERE:
+    const handleSearch = (query) => {
+        setSearchQuery(query);
+        setActivePage(query ? 'search' : 'home');
+    };
+
+    const handleGenreSelect = (genre) => {
+        setSelectedGenre(genre);
+        setSearchQuery('');
+        if (genre) {
+            setActivePage('home');
+            setTimeout(() => {
+                const element = document.getElementById(`genre-${genre.id}`);
+                if (element) {
+                     window.scrollTo({
+                        top: element.getBoundingClientRect().top + window.scrollY - 140,
+                        behavior: 'smooth'
+                    });
+                }
+            }, 100);
+        } else {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+    
     const continueWatchingMovies = [...schedule.vaultMovies, ...schedule.recentMovies, ...schedule.originalMovies]
         .filter(m => {
             const prog = watchProgress[m.id];
@@ -197,7 +221,8 @@ function App() {
                         {activePage === 'home' && (
                             <>
                                 <Hero onRandomWatch={() => {}} />
-                                <div className="z-20 relative mt-[-100px] md:mt-[-150px] pb-20">
+                                <GenreBar onGenreSelect={handleGenreSelect} selectedGenre={selectedGenre} />
+                                <div className="z-20 relative mt-8 pb-20">
                                     {continueWatchingMovies.length > 0 && renderMovieRow("Continue Watching", continueWatchingMovies)}
                                     {renderMovieRow("Recently Added", schedule.recentMovies)}
                                     {renderMovieRow("Anreal Originals", schedule.originalMovies)}
@@ -288,7 +313,7 @@ function App() {
                 <div className="flex flex-col items-center gap-6">
                     <h2 className="text-3xl font-black italic uppercase tracking-tighter">ANREAL <span className="text-red-600">CINEMA</span></h2>
                     <p className="text-slate-400 text-sm">
-                        Powered by <a href="https://brubai.net/" className="text-red-500 font-bold">BRUB AI</a>
+                        Powered by <a href="https://brubai.net/" target="_blank" rel="noopener noreferrer" className="text-red-500 font-bold hover:text-red-400 transition-colors">BRUB AI</a>
                     </p>
                 </div>
             </footer>
