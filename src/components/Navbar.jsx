@@ -17,13 +17,13 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
         setIsMenuOpen(false);
     };
 
-    // REMOVED "ORIGINALS" - FIXED CROWDING
+    // RESTORED: Simple Menu with My List
     const navLinks = [
         { id: 'home', label: 'Home' },
         { id: 'movies', label: 'The Vault' },
         { id: 'recent', label: 'Recently Added' },
         { id: 'popular', label: 'Coming Soon' },
-        { id: 'mylist', label: 'My List' },
+        { id: 'mylist', label: 'My List' }, 
         { id: 'about', label: 'About' }
     ];
 

@@ -4,13 +4,12 @@ import Hero from './components/Hero';
 import MovieModal from './components/MovieModal';
 import GenreBar from './components/GenreBar';
 import MovieGrid from './components/MovieGrid';
-import SmartMovieCard from './components/SmartMovieCard'; 
+import MovieCard from './components/MovieCard'; // Using the stable card
 import { GENRES } from './config/GenreConfig';
 
 // --- DATA IMPORTS ---
 import vaultMoviesData from './data/movies.json'; 
 import comingSoonData from './data/coming_soon.json';
-// REMOVED ORIGINALS IMPORT
 
 // --- CONFIGURATION ---
 const API_KEY = '9f779ecda119c29a7de55ce4e7f4f56c'; 
@@ -23,39 +22,23 @@ function App() {
     const [activePage, setActivePage] = useState('home');
     const [searchQuery, setSearchQuery] = useState('');
     
-    // User Data State
+    // MY LIST STATE
     const [myList, setMyList] = useState([]);
-    const [watchProgress, setWatchProgress] = useState({});
 
-    // Movie Data State
     const [schedule, setSchedule] = useState({
         vaultMovies: [],
         recentMovies: [],
         comingSoonMovies: []
     });
 
-    // --- 0. SAFELY LOAD USER DATA ---
-    const loadUserData = () => {
+    // --- LOAD MY LIST ---
+    useEffect(() => {
         try {
             const listRaw = localStorage.getItem('anreal_mylist');
-            const progressRaw = localStorage.getItem('anreal_progress');
-            
-            const list = listRaw ? JSON.parse(listRaw) : [];
-            const progress = progressRaw ? JSON.parse(progressRaw) : {};
-            
-            setMyList(list);
-            setWatchProgress(progress);
+            if (listRaw) setMyList(JSON.parse(listRaw));
         } catch (error) {
-            console.error("Error loading user data:", error);
-            localStorage.setItem('anreal_mylist', '[]');
-            localStorage.setItem('anreal_progress', '{}');
+            console.error("Storage error", error);
         }
-    };
-
-    useEffect(() => {
-        loadUserData();
-        window.addEventListener('storage', loadUserData);
-        return () => window.removeEventListener('storage', loadUserData);
     }, []);
 
     const toggleMyList = (movie) => {
@@ -71,7 +54,7 @@ function App() {
         setMyList(newList);
     };
 
-    // --- 1. AUTOMATION & API ENGINE ---
+    // --- AUTOMATION ENGINE ---
     useEffect(() => {
         const getRawSchedule = () => {
             const now = new Date();
@@ -83,7 +66,6 @@ function App() {
                 poster: m.poster || m.image, 
                 image: m.image || m.poster, 
                 videoUrl: m.videoUrl || "/banner.mp4",
-                // Ensure topics is always an array to prevent crashes
                 topics: Array.isArray(m.topics) ? m.topics : [] 
             })));
 
@@ -149,9 +131,6 @@ function App() {
         run();
     }, []);
 
-
-    // --- RENDERING HELPERS ---
-    
     const handleSearch = (query) => {
         setSearchQuery(query);
         setActivePage(query ? 'search' : 'home');
@@ -176,16 +155,7 @@ function App() {
         }
     };
     
-    const safeVault = schedule.vaultMovies || [];
-    const safeRecent = schedule.recentMovies || [];
-    const safeComingSoon = schedule.comingSoonMovies || [];
-
-    const continueWatchingMovies = [...safeVault, ...safeRecent]
-        .filter(m => {
-            const prog = watchProgress[m.id];
-            return prog && prog.percentage > 0 && prog.percentage < 95;
-        });
-
+    // RENDERING HELPERS
     const renderMovieRow = (title, movies) => {
         if (!movies || movies.length === 0) return null;
         return (
@@ -193,16 +163,14 @@ function App() {
                 <h3 className="text-xl md:text-2xl font-bold text-white mb-4 flex items-center gap-2">
                     {title}
                 </h3>
-                {/* FIXED: Added proper horizontal scrolling classes */}
                 <div className="flex gap-4 overflow-x-auto pb-8 scrollbar-hide px-2">
                     {movies.map(movie => (
-                        <SmartMovieCard 
+                        <MovieCard 
                             key={movie.id} 
                             movie={movie} 
                             onClick={setSelectedMovie}
                             onToggleList={toggleMyList}
                             isInList={myList.some(m => m.id === movie.id)}
-                            progress={watchProgress[movie.id]?.percentage || 0}
                         />
                     ))}
                 </div>
@@ -210,6 +178,26 @@ function App() {
         );
     };
 
+    const renderGrid = (title, movies) => (
+        <div className="pt-8 px-6">
+            <h2 className="text-3xl font-black italic mb-8 uppercase">{title}</h2>
+             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                {movies.map(movie => (
+                    <MovieCard 
+                        key={movie.id} 
+                        movie={movie} 
+                        onClick={setSelectedMovie} 
+                        onToggleList={toggleMyList} 
+                        isInList={myList.some(m => m.id === movie.id)} 
+                    />
+                ))}
+            </div>
+        </div>
+    );
+
+    const safeVault = schedule.vaultMovies || [];
+    const safeRecent = schedule.recentMovies || [];
+    const safeComingSoon = schedule.comingSoonMovies || [];
     const allSearchable = [...safeVault, ...safeRecent, ...safeComingSoon];
     const searchResults = searchQuery ? allSearchable.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
@@ -218,27 +206,15 @@ function App() {
             <Navbar activePage={activePage} setActivePage={setActivePage} onSearch={handleSearch} />
 
             <main className="relative z-10 pt-16">
-                
-                {searchQuery ? (
-                    <div className="pt-8 px-6">
-                        <h2 className="text-2xl font-bold mb-6">Results for "{searchQuery}"</h2>
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                             {searchResults.map(movie => (
-                                <SmartMovieCard key={movie.id} movie={movie} onClick={setSelectedMovie} onToggleList={toggleMyList} isInList={myList.some(m => m.id === movie.id)} />
-                            ))}
-                        </div>
-                    </div>
-                ) : (
+                {searchQuery ? renderGrid(`Results for "${searchQuery}"`, searchResults) : (
                     <>
                         {activePage === 'home' && (
                             <>
                                 <Hero onRandomWatch={() => {}} />
                                 <GenreBar onGenreSelect={handleGenreSelect} selectedGenre={selectedGenre} />
                                 <div className="z-20 relative mt-8 pb-20">
-                                    {continueWatchingMovies.length > 0 && renderMovieRow("Continue Watching", continueWatchingMovies)}
-                                    {renderMovieRow("Recently Added", schedule.recentMovies)}
+                                    {renderMovieRow("Recently Added", safeRecent)}
                                     
-                                    {/* FIXED: GENRES ARE BACK & CRASH PROOF */}
                                     {GENRES.map(genre => (
                                         <div key={genre.id} id={`genre-${genre.id}`}>
                                             {renderMovieRow(genre.name, safeVault.filter(m => {
@@ -251,51 +227,17 @@ function App() {
                             </>
                         )}
 
-                        {activePage === 'movies' && (
-                             <div className="pt-8 px-6">
-                                <h2 className="text-3xl font-black italic mb-8">THE <span className="text-red-600">VAULT</span></h2>
-                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                                    {safeVault.map(movie => <SmartMovieCard key={movie.id} movie={movie} onClick={setSelectedMovie} onToggleList={toggleMyList} isInList={myList.some(m => m.id === movie.id)} />)}
-                                </div>
-                            </div>
-                        )}
-
-                        {activePage === 'recent' && (
-                             <div className="pt-8 px-6">
-                                <h2 className="text-3xl font-black italic mb-8">RECENTLY <span className="text-red-600">ADDED</span></h2>
-                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                                    {safeRecent.map(movie => <SmartMovieCard key={movie.id} movie={movie} onClick={setSelectedMovie} onToggleList={toggleMyList} isInList={myList.some(m => m.id === movie.id)} />)}
-                                </div>
-                            </div>
-                        )}
-
-                        {activePage === 'popular' && (
-                             <div className="pt-8 px-6">
-                                <h2 className="text-3xl font-black italic mb-8">COMING <span className="text-red-600">SOON</span></h2>
-                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                                    {safeComingSoon.map(movie => <SmartMovieCard key={movie.id} movie={movie} onClick={setSelectedMovie} onToggleList={toggleMyList} isInList={myList.some(m => m.id === movie.id)} />)}
-                                </div>
-                            </div>
-                        )}
+                        {activePage === 'movies' && renderGrid("The Vault", safeVault)}
+                        {activePage === 'recent' && renderGrid("Recently Added", safeRecent)}
+                        {activePage === 'popular' && renderGrid("Coming Soon", safeComingSoon)}
 
                         {activePage === 'mylist' && (
                             <div className="pt-8 px-6 min-h-[60vh]">
                                 <h2 className="text-3xl font-black italic mb-8">MY <span className="text-red-600">LIST</span></h2>
                                 {myList.length === 0 ? (
-                                    <p className="text-slate-500">Your list is empty. Add movies using the + button.</p>
+                                    <p className="text-slate-500">Your list is empty. Click the + on any movie.</p>
                                 ) : (
-                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                                        {myList.map(movie => (
-                                            <SmartMovieCard 
-                                                key={movie.id} 
-                                                movie={movie} 
-                                                onClick={setSelectedMovie} 
-                                                onToggleList={toggleMyList} 
-                                                isInList={true}
-                                                progress={watchProgress[movie.id]?.percentage || 0}
-                                            />
-                                        ))}
-                                    </div>
+                                    renderGrid("My Watchlist", myList)
                                 )}
                             </div>
                         )}
@@ -380,13 +322,13 @@ function App() {
                 <div className="flex flex-col items-center gap-6">
                     <h2 className="text-3xl font-black italic uppercase tracking-tighter">ANREAL <span className="text-red-600">CINEMA</span></h2>
                     <p className="text-slate-400 text-sm">
-                        Powered by <a href="https://brubai.net/" className="text-red-500 font-bold">BRUB AI</a>
+                        Powered by <a href="https://brubai.net/" target="_blank" rel="noopener noreferrer" className="text-red-500 font-bold hover:text-red-400 transition-colors">BRUB AI</a>
                     </p>
                 </div>
             </footer>
 
             {selectedMovie && (
-                <MovieModal movie={selectedMovie} onClose={() => { setSelectedMovie(null); loadUserData(); }} />
+                <MovieModal movie={selectedMovie} onClose={() => setSelectedMovie(null)} />
             )}
         </div>
     );
