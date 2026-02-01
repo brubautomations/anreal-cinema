@@ -36,34 +36,19 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
                         </span>
                         <span className="text-xl font-black tracking-tighter italic md:hidden">ANREAL</span>
                     </div>
-
                     <div className="hidden md:flex items-center space-x-6">
                         {navLinks.map((link) => (
-                            <button
-                                key={link.id}
-                                onClick={() => handleNavClick(link.id)}
-                                className={`text-sm font-bold uppercase tracking-widest transition-colors ${
-                                    activePage === link.id ? 'text-red-600' : 'text-slate-300 hover:text-white'
-                                }`}
-                            >
+                            <button key={link.id} onClick={() => handleNavClick(link.id)} className={`text-sm font-bold uppercase tracking-widest transition-colors ${activePage === link.id ? 'text-red-600' : 'text-slate-300 hover:text-white'}`}>
                                 {link.label}
                             </button>
                         ))}
                     </div>
-
                     <div className="hidden md:block">
                         <form onSubmit={handleSearchSubmit} className="relative">
-                            <input
-                                type="text"
-                                placeholder="Search archives..."
-                                className="bg-slate-900 border border-slate-700 rounded-full py-1 px-4 text-sm focus:outline-none focus:border-red-600 w-48 transition-all"
-                                value={localSearch}
-                                onChange={(e) => setLocalSearch(e.target.value)}
-                            />
+                            <input type="text" placeholder="Search archives..." className="bg-slate-900 border border-slate-700 rounded-full py-1 px-4 text-sm focus:outline-none focus:border-red-600 w-48 transition-all" value={localSearch} onChange={(e) => setLocalSearch(e.target.value)} />
                             <Search className="w-4 h-4 text-slate-500 absolute right-3 top-2" />
                         </form>
                     </div>
-
                     <div className="md:hidden">
                         <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-slate-300 hover:text-white p-2">
                             {isMenuOpen ? <X size={28} /> : <Menu size={28} />}

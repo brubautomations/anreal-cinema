@@ -1,82 +1,152 @@
-import React from 'react';
-import { X, ArrowLeft, Calendar, Tag, HardDrive, Info } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { X, Play, Plus, Check, Volume2, VolumeX } from 'lucide-react';
 
-export default function MovieModal({ movie, onClose }) {
+const MovieModal = ({ movie, onClose }) => {
+    const videoRef = useRef(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [isMuted, setIsMuted] = useState(false);
+    const [isInList, setIsInList] = useState(false);
+
+    // 1. Load Initial State (List & Progress)
+    useEffect(() => {
+        // Check List
+        const currentList = JSON.parse(localStorage.getItem('anreal_mylist') || '[]');
+        setIsInList(currentList.some(m => m.id === movie.id));
+
+        // Check Progress
+        const progressData = JSON.parse(localStorage.getItem('anreal_progress') || '{}');
+        const savedTime = progressData[movie.id]?.time || 0;
+        
+        // If saved time exists, we can seek to it (once video metadata loads)
+        // We'll set a flag to seek later or handle it in onLoadedMetadata
+    }, [movie.id]);
+
+    // 2. Toggle My List
+    const toggleList = () => {
+        const currentList = JSON.parse(localStorage.getItem('anreal_mylist') || '[]');
+        let newList;
+        if (isInList) {
+            newList = currentList.filter(m => m.id !== movie.id);
+        } else {
+            newList = [...currentList, movie];
+        }
+        localStorage.setItem('anreal_mylist', JSON.stringify(newList));
+        setIsInList(!isInList);
+        
+        // Trigger a custom event so App.tsx knows to update
+        window.dispatchEvent(new Event('storage'));
+    };
+
+    // 3. Save Progress Loop
+    const handleTimeUpdate = () => {
+        if (videoRef.current) {
+            const time = videoRef.current.currentTime;
+            const duration = videoRef.current.duration;
+            if (duration > 0) {
+                const percentage = (time / duration) * 100;
+                
+                // Save to LocalStorage
+                const allProgress = JSON.parse(localStorage.getItem('anreal_progress') || '{}');
+                allProgress[movie.id] = { time, percentage, lastWatched: Date.now() };
+                localStorage.setItem('anreal_progress', JSON.stringify(allProgress));
+            }
+        }
+    };
+
+    // 4. Resume Logic
+    const handleLoadedMetadata = () => {
+        const progressData = JSON.parse(localStorage.getItem('anreal_progress') || '{}');
+        const savedTime = progressData[movie.id]?.time || 0;
+        if (savedTime > 0 && videoRef.current) {
+            videoRef.current.currentTime = savedTime;
+        }
+    };
+
     if (!movie) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] bg-black animate-in fade-in duration-300 flex flex-col overflow-y-auto no-scrollbar">
-            {/* Top Header / Back Button */}
-            <div className="sticky top-0 z-[110] w-full px-6 py-4 flex items-center justify-between bg-slate-950/80 backdrop-blur-md border-b border-white/5">
-                <button
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="relative w-full max-w-5xl bg-[#141414] rounded-xl overflow-hidden shadow-2xl border border-white/10">
+                
+                {/* Close Button */}
+                <button 
                     onClick={onClose}
-                    className="flex items-center gap-2 text-white hover:text-red-600 transition-all font-bold group"
+                    className="absolute top-4 right-4 z-20 p-2 bg-black/50 hover:bg-black/80 rounded-full text-white transition-colors"
                 >
-                    <div className="bg-slate-900 group-hover:bg-red-600/20 p-2 rounded-lg transition-colors">
-                        <ArrowLeft className="w-6 h-6" />
-                    </div>
-                    <span className="text-lg uppercase tracking-wider">Back to Menu</span>
+                    <X size={24} />
                 </button>
-                <button
-                    onClick={onClose}
-                    className="text-slate-400 hover:text-white transition-colors p-2"
-                >
-                    <X className="w-6 h-6" />
-                </button>
-            </div>
 
-            <div className="flex-1 flex flex-col items-center max-w-6xl mx-auto w-full py-8 px-4">
-                {/* Video Player */}
-                <div className="relative w-full aspect-video bg-slate-900 rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10 mb-10">
-                    <iframe
-                        src={movie.embedUrl}
-                        width="100%"
-                        height="100%"
-                        frameBorder="0"
-                        webkitallowfullscreen="true"
-                        mozallowfullscreen="true"
-                        allowFullScreen
-                        className="w-full h-full"
-                        title={movie.title}
-                    ></iframe>
+                {/* Video Player Area */}
+                <div className="relative aspect-video bg-black group">
+                    {!movie.isComingSoon ? (
+                        <video 
+                            ref={videoRef}
+                            src={movie.videoUrl} 
+                            className="w-full h-full"
+                            controls 
+                            autoPlay
+                            onTimeUpdate={handleTimeUpdate}
+                            onLoadedMetadata={handleLoadedMetadata}
+                            onPlay={() => setIsPlaying(true)}
+                            onPause={() => setIsPlaying(false)}
+                        />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-slate-900">
+                             <img src={movie.backdrop || movie.poster} className="absolute inset-0 w-full h-full object-cover opacity-50" />
+                             <div className="relative z-10 text-center">
+                                <h2 className="text-3xl font-black italic text-white mb-2">COMING SOON</h2>
+                                <p className="text-slate-300">Unlock date: Sunday, 6:00 AM</p>
+                             </div>
+                        </div>
+                    )}
                 </div>
 
-                {/* Info Section */}
-                <div className="w-full text-slate-100 flex flex-col gap-6 animate-in slide-in-from-bottom-8 duration-500">
-                    <div>
-                        <h2 className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter mb-4 text-white">
-                            {movie.title}
-                        </h2>
-                        <div className="flex flex-wrap items-center gap-6 text-sm md:text-base font-semibold text-slate-400 bg-white/5 py-4 px-6 rounded-2xl border border-white/5">
-                            <div className="flex items-center gap-2">
-                                <Calendar className="w-4 h-4 text-red-600" />
-                                <span className="text-white">Publication date:</span> {movie.date || 'Unknown'}
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Tag className="w-4 h-4 text-red-600" />
-                                <span className="text-white">Topics:</span>
-                                {Array.isArray(movie.topics) ? movie.topics.join(', ') : (movie.topics || 'None')}
-                            </div>
-                            {movie.size && (
-                                <div className="flex items-center gap-2">
-                                    <HardDrive className="w-4 h-4 text-red-600" />
-                                    <span className="text-white">Item Size:</span> {movie.size}
-                                </div>
-                            )}
+                {/* Details Area */}
+                <div className="p-6 md:p-8">
+                    <div className="flex flex-col md:flex-row gap-6">
+                        
+                        {/* Poster (Mobile Hidden) */}
+                        <div className="hidden md:block w-32 shrink-0">
+                            <img src={movie.poster} className="rounded shadow-lg" />
                         </div>
-                    </div>
 
-                    <div className="relative">
-                        <div className="flex items-center gap-2 mb-3 text-slate-300 font-bold uppercase tracking-widest text-xs">
-                            <Info className="w-4 h-4 text-red-600" />
-                            Synopsis
+                        {/* Text Info */}
+                        <div className="flex-1">
+                            <h2 className="text-3xl font-bold text-white mb-2">{movie.title}</h2>
+                            
+                            <div className="flex items-center gap-4 mb-4 text-sm text-slate-400">
+                                <span>{movie.year || "Classic"}</span>
+                                <span className="border border-slate-600 px-1 rounded text-xs">HD</span>
+                            </div>
+
+                            <p className="text-slate-300 leading-relaxed mb-6">
+                                {movie.description}
+                            </p>
+
+                            <div className="flex gap-3">
+                                {!movie.isComingSoon && (
+                                    <button 
+                                        onClick={() => videoRef.current?.play()}
+                                        className="flex items-center gap-2 bg-white text-black px-6 py-2 rounded font-bold hover:bg-slate-200 transition-colors"
+                                    >
+                                        <Play size={20} fill="currentColor" /> Play
+                                    </button>
+                                )}
+                                
+                                <button 
+                                    onClick={toggleList}
+                                    className="flex items-center gap-2 border border-slate-500 text-white px-6 py-2 rounded font-bold hover:border-white transition-colors"
+                                >
+                                    {isInList ? <Check size={20} /> : <Plus size={20} />}
+                                    {isInList ? 'In My List' : 'My List'}
+                                </button>
+                            </div>
                         </div>
-                        <p className="text-slate-300 text-lg leading-relaxed max-w-4xl bg-gradient-to-br from-white/5 to-transparent p-6 rounded-2xl border border-white/5 whitespace-pre-wrap">
-                            {movie.description || "In the quiet echoes of the archive, this cinematic piece awaits your discovery. Dive into the vintage aesthetics of a bygone era."}
-                        </p>
                     </div>
                 </div>
             </div>
         </div>
     );
-}
+};
+
+export default MovieModal;

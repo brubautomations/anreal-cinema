@@ -1,22 +1,15 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Play, Lock } from 'lucide-react';
 
 const MovieCard = ({ movie, onClick }) => {
-    const [imgSrc, setImgSrc] = useState(movie.poster || movie.image);
-
-    const handleError = () => {
-        setImgSrc("https://placehold.co/400x600/1e293b/ffffff?text=No+Image");
-    };
-
     return (
         <div 
             className="relative flex-none w-[160px] md:w-[200px] aspect-[2/3] rounded-md overflow-hidden transition-all duration-300 ease-in-out hover:scale-105 cursor-pointer group bg-slate-900 shadow-lg"
             onClick={() => !movie.isComingSoon && onClick(movie)}
         >
             <img 
-                src={imgSrc} 
-                alt={movie.title}
-                onError={handleError}
+                src={movie.poster || movie.image} 
+                alt={movie.title} 
                 className={`w-full h-full object-cover transition-all duration-300 ${
                     movie.isComingSoon ? 'grayscale opacity-50' : 'group-hover:opacity-40'
                 }`}
