@@ -10,6 +10,7 @@ import { GENRES } from './config/GenreConfig';
 // --- DATA IMPORTS ---
 import vaultMoviesData from './data/movies.json'; 
 import comingSoonData from './data/coming_soon.json';
+import originalsData from './data/originals.json'; 
 
 // --- CONFIGURATION ---
 const API_KEY = '9f779ecda119c29a7de55ce4e7f4f56c'; 
@@ -22,70 +23,70 @@ function App() {
     const [activePage, setActivePage] = useState('home');
     const [searchQuery, setSearchQuery] = useState('');
     
-    // State to hold movies AFTER we find their real posters
     const [schedule, setSchedule] = useState({
         vaultMovies: [],
         recentMovies: [],
-        comingSoonMovies: []
+        comingSoonMovies: [],
+        originalMovies: []
     });
 
-    // --- 1. THE AUTOMATION ENGINE (Logic Only) ---
+    // --- 1. THE AUTOMATION ENGINE ---
     const getRawSchedule = () => {
         const now = new Date();
         const msPerWeek = 7 * 24 * 60 * 60 * 1000;
 
-        // Helper: Standardize movie data
+        // Helper: Cleans up data
         const sanitize = (list) => list.map(m => ({
             ...m,
             id: m.id || Math.random().toString(36).substr(2, 9),
-            poster: m.poster || m.image, // Prefer poster, fallback to image
+            poster: m.poster || m.image, 
             videoUrl: m.videoUrl || "/banner.mp4"
         }));
 
         let vault = [];
         let recent = [];
         let comingSoon = [];
+        // Originals are never locked
+        let originals = sanitize(originalsData).map(m => ({ ...m, isComingSoon: false })); 
 
-        // SCENARIO 1: PRE-LAUNCH (Right Now / Before Feb 1)
+        // SCENARIO 1: PRE-LAUNCH (Before Feb 1)
         if (now < START_DATE) {
-            // Vault: The original 500
-            vault = sanitize(vaultMoviesData);
-            
-            // Recent: Empty (Wait for Sunday)
+            vault = sanitize(vaultMoviesData).map(m => ({ ...m, isComingSoon: false }));
             recent = []; 
-            
-            // Coming Soon: ONLY the first 50 from the new file
-            comingSoon = sanitize(comingSoonData.slice(0, BATCH_SIZE)); 
+            // Force Coming Soon to be locked
+            comingSoon = sanitize(comingSoonData.slice(0, BATCH_SIZE)).map(m => ({ ...m, isComingSoon: true })); 
         } 
         // SCENARIO 2: LIVE CYCLE (Sunday Feb 1 onwards)
         else {
-            // Calculate weeks passed since Feb 1
             const weeksPassed = Math.floor((now.getTime() - START_DATE.getTime()) / msPerWeek);
             
-            // 1. VAULT
+            // 1. VAULT (Unlocked)
             const vaultFromNewData = comingSoonData.slice(0, weeksPassed * BATCH_SIZE);
-            vault = sanitize([...vaultMoviesData, ...vaultFromNewData]);
+            const combinedVault = [...vaultMoviesData, ...vaultFromNewData];
+            vault = sanitize(combinedVault).map(m => ({ ...m, isComingSoon: false }));
 
-            // 2. RECENTLY ADDED
+            // 2. RECENTLY ADDED (Unlocked - THIS IS THE FIX)
             const recentStart = weeksPassed * BATCH_SIZE;
             const recentEnd = recentStart + BATCH_SIZE;
-            recent = sanitize(comingSoonData.slice(recentStart, recentEnd));
+            const recentRaw = comingSoonData.slice(recentStart, recentEnd);
+            // We force isComingSoon to FALSE here so they play
+            recent = sanitize(recentRaw).map(m => ({ ...m, isComingSoon: false }));
 
-            // 3. COMING SOON
+            // 3. COMING SOON (Locked)
             const comingSoonStart = recentEnd;
             const comingSoonEnd = comingSoonStart + BATCH_SIZE;
-            comingSoon = sanitize(comingSoonData.slice(comingSoonStart, comingSoonEnd));
+            const comingSoonRaw = comingSoonData.slice(comingSoonStart, comingSoonEnd);
+            comingSoon = sanitize(comingSoonRaw).map(m => ({ ...m, isComingSoon: true }));
         }
 
-        return { vault, recent, comingSoon };
+        return { vault, recent, comingSoon, originals };
     };
 
-    // --- 2. THE API FETCHING ENGINE (Auto-Images) ---
+    // --- 2. THE API FETCHING ENGINE ---
     useEffect(() => {
         const rawSchedule = getRawSchedule();
         
         const fetchPoster = async (movie) => {
-            // If it already has a TMDB link, skip fetching
             if (movie.poster && movie.poster.includes('tmdb.org')) return movie;
 
             try {
@@ -116,7 +117,8 @@ function App() {
             setSchedule({
                 vaultMovies: rawSchedule.vault,
                 recentMovies: enrichedRecent,
-                comingSoonMovies: enrichedComingSoon
+                comingSoonMovies: enrichedComingSoon,
+                originalMovies: rawSchedule.originals
             });
         };
 
@@ -124,7 +126,6 @@ function App() {
 
     }, []);
 
-    // --- HANDLERS ---
     const handleRandomWatch = () => {
         if (schedule.vaultMovies.length > 0) {
             const validMovies = schedule.vaultMovies.filter(m => !m.isComingSoon);
@@ -157,7 +158,13 @@ function App() {
         }
     };
 
-    const allSearchableMovies = [...schedule.vaultMovies, ...schedule.recentMovies, ...schedule.comingSoonMovies];
+    const allSearchableMovies = [
+        ...schedule.vaultMovies, 
+        ...schedule.recentMovies, 
+        ...schedule.comingSoonMovies,
+        ...schedule.originalMovies
+    ];
+    
     const searchResults = searchQuery 
         ? allSearchableMovies.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()))
         : [];
@@ -211,11 +218,8 @@ function App() {
                             onMovieClick={(m) => setSelectedMovie(m)} 
                         />
                          {schedule.recentMovies.length === 0 && (
-                            <div className="text-center mt-20 px-6">
-                                <h2 className="text-2xl font-bold text-slate-400 mb-2">The Vault is Sealed.</h2>
-                                <p className="text-slate-500">
-                                    The first batch of new restorations arrives <strong>Sunday, Feb 1 at 6:00 AM</strong>.
-                                </p>
+                            <div className="text-center mt-20 px-6 text-slate-500">
+                                The first batch drops this Sunday at 6:00 AM.
                             </div>
                         )}
                     </div>
@@ -229,12 +233,23 @@ function App() {
                             onMovieClick={(m) => setSelectedMovie(m)} 
                         />
                         {schedule.comingSoonMovies.length === 0 && (
-                            <div className="text-center mt-20 px-6">
-                                <h2 className="text-2xl font-bold text-slate-400 mb-2">Shhh...</h2>
-                                <p className="text-slate-500">
-                                    The next batch is being prepared.<br/>
-                                    Check back <strong>Sunday at 6:00 AM</strong> for the reveal.
-                                </p>
+                            <div className="text-center mt-20 px-6 text-slate-500">
+                                No upcoming movies scheduled.
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {!searchQuery && activePage === 'originals' && (
+                    <div className="pt-8">
+                        <MovieGrid 
+                            title="Anreal Originals" 
+                            movies={schedule.originalMovies} 
+                            onMovieClick={(m) => setSelectedMovie(m)} 
+                        />
+                        {schedule.originalMovies.length === 0 && (
+                            <div className="text-center mt-20 px-6 text-slate-500">
+                                No Originals available yet. Coming soon.
                             </div>
                         )}
                     </div>
@@ -318,7 +333,7 @@ function App() {
                 <div className="flex flex-col items-center gap-6">
                     <h2 className="text-3xl font-black italic uppercase tracking-tighter">ANREAL <span className="text-red-600">CINEMA</span></h2>
                     <p className="text-slate-400 text-sm">
-                        Powered by <a href="https://brubai.net/" className="text-red-500 font-bold">BRUB AI</a>
+                        Powered by <a href="https://brubai.net/" target="_blank" rel="noopener noreferrer" className="text-red-500 font-bold hover:text-red-400 transition-colors">BRUB AI</a>
                     </p>
                 </div>
             </footer>
