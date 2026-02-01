@@ -22,7 +22,6 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
         { id: 'movies', label: 'The Vault' },
         { id: 'recent', label: 'Recently Added' },
         { id: 'popular', label: 'Coming Soon' },
-        { id: 'mylist', label: 'My List' },
         { id: 'about', label: 'About' }
     ];
 
@@ -30,7 +29,10 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
         <nav className="fixed top-0 w-full z-50 bg-slate-950/90 backdrop-blur-md border-b border-white/10">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-16">
-                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleNavClick('home')}>
+                    <div 
+                        className="flex items-center gap-2 cursor-pointer" 
+                        onClick={() => handleNavClick('home')}
+                    >
                         <Film className="w-8 h-8 text-red-600" />
                         <span className="text-xl font-black tracking-tighter italic hidden md:block">
                             ANREAL <span className="text-red-600">CINEMA</span>

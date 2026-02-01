@@ -1,7 +1,7 @@
 import React from 'react';
-import { Play, Lock, Plus, Check } from 'lucide-react';
+import { Play, Lock } from 'lucide-react';
 
-const MovieCard = ({ movie, onClick, onToggleList, isInList }) => {
+const MovieCard = ({ movie, onClick }) => {
     return (
         <div 
             className="relative flex-none w-[160px] md:w-[200px] aspect-[2/3] rounded-md overflow-hidden transition-all duration-300 ease-in-out hover:scale-105 cursor-pointer group bg-slate-900 shadow-lg"
@@ -19,25 +19,10 @@ const MovieCard = ({ movie, onClick, onToggleList, isInList }) => {
             <div className="absolute inset-0 flex flex-col justify-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 {!movie.isComingSoon ? (
                     <>
-                        <div className="flex justify-center gap-3 mb-3 transform translate-y-4 group-hover:translate-y-0 transition-transform">
-                            {/* PLAY BUTTON */}
-                            <button className="bg-red-600 rounded-full p-3 shadow-lg hover:bg-red-700 text-white">
-                                <Play fill="white" size={20} />
-                            </button>
-                            {/* MY LIST BUTTON */}
-                            <button 
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onToggleList(movie);
-                                }}
-                                className={`rounded-full p-3 shadow-lg border-2 ${
-                                    isInList 
-                                    ? 'bg-white border-white text-black' 
-                                    : 'bg-black/50 border-white text-white hover:bg-white/20'
-                                }`}
-                            >
-                                {isInList ? <Check size={20} /> : <Plus size={20} />}
-                            </button>
+                        <div className="flex justify-center mb-3 transform translate-y-4 group-hover:translate-y-0 transition-transform">
+                            <div className="bg-red-600 rounded-full p-3 shadow-lg">
+                                <Play fill="white" className="text-white ml-1" size={24} />
+                            </div>
                         </div>
                         <h3 className="text-white font-bold text-center text-sm drop-shadow-md">{movie.title}</h3>
                         <p className="text-slate-300 text-xs text-center mt-1">{movie.year}</p>

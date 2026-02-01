@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import MovieCard from './MovieCard';
 
-const MovieRow = ({ genre, movies, onMovieClick, onToggleList, myList }) => {
+const MovieRow = ({ genre, movies, onMovieClick }) => {
     const rowRef = useRef(null);
 
     const scroll = (offset) => {
@@ -31,12 +31,7 @@ const MovieRow = ({ genre, movies, onMovieClick, onToggleList, myList }) => {
             >
                 {movies.map((movie) => (
                     <div key={movie.id} className="flex-none">
-                        <MovieCard 
-                            movie={movie} 
-                            onClick={onMovieClick}
-                            onToggleList={onToggleList}
-                            isInList={myList.some(m => m.id === movie.id)}
-                        />
+                        <MovieCard movie={movie} onClick={onMovieClick} />
                     </div>
                 ))}
             </div>
