@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X, Search, Film, Plus, Check } from 'lucide-react';
+import { Menu, X, Search, Film } from 'lucide-react';
 
 const Navbar = ({ activePage, setActivePage, onSearch }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -17,7 +17,7 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
         setIsMenuOpen(false);
     };
 
-    // REMOVED "ORIGINALS" TO FIX CROWDING
+    // REMOVED "ORIGINALS" - FIXED CROWDING
     const navLinks = [
         { id: 'home', label: 'Home' },
         { id: 'movies', label: 'The Vault' },
@@ -39,7 +39,6 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
                         <span className="text-xl font-black tracking-tighter italic hidden md:block">
                             ANREAL <span className="text-red-600">CINEMA</span>
                         </span>
-                        {/* Mobile Logo Shortened */}
                         <span className="text-xl font-black tracking-tighter italic md:hidden">
                             ANREAL
                         </span>
@@ -50,7 +49,7 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
                             <button
                                 key={link.id}
                                 onClick={() => handleNavClick(link.id)}
-                                className={`text-xs lg:text-sm font-bold uppercase tracking-widest transition-colors flex items-center gap-1 ${
+                                className={`text-sm font-bold uppercase tracking-widest transition-colors ${
                                     activePage === link.id ? 'text-red-600' : 'text-slate-300 hover:text-white'
                                 }`}
                             >
@@ -63,7 +62,7 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
                         <form onSubmit={handleSearchSubmit} className="relative">
                             <input
                                 type="text"
-                                placeholder="Search..."
+                                placeholder="Search archives..."
                                 className="bg-slate-900 border border-slate-700 rounded-full py-1 px-4 text-sm focus:outline-none focus:border-red-600 w-48 transition-all"
                                 value={localSearch}
                                 onChange={(e) => setLocalSearch(e.target.value)}

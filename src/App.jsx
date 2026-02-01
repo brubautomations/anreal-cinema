@@ -77,17 +77,16 @@ function App() {
             const now = new Date();
             const msPerWeek = 7 * 24 * 60 * 60 * 1000;
             
-            // Helper: Sanitize AND ensure topics is an array
             const sanitize = (list) => (!list ? [] : list.map(m => ({
                 ...m,
                 id: m.id || Math.random().toString(36).substr(2, 9),
                 poster: m.poster || m.image, 
                 image: m.image || m.poster, 
                 videoUrl: m.videoUrl || "/banner.mp4",
+                // Ensure topics is always an array to prevent crashes
                 topics: Array.isArray(m.topics) ? m.topics : [] 
             })));
 
-            // Initialize variables
             let vaultMovies = [];
             let recentMovies = [];
             let comingSoonMovies = [];
@@ -115,7 +114,6 @@ function App() {
 
         const raw = getRawSchedule();
         
-        // Fetch Posters logic
         const fetchPoster = async (movie) => {
             if ((movie.poster && movie.poster.includes('tmdb.org'))) return movie;
             try {
@@ -178,7 +176,6 @@ function App() {
         }
     };
     
-    // Safe Arrays for rendering
     const safeVault = schedule.vaultMovies || [];
     const safeRecent = schedule.recentMovies || [];
     const safeComingSoon = schedule.comingSoonMovies || [];
@@ -196,6 +193,7 @@ function App() {
                 <h3 className="text-xl md:text-2xl font-bold text-white mb-4 flex items-center gap-2">
                     {title}
                 </h3>
+                {/* FIXED: Added proper horizontal scrolling classes */}
                 <div className="flex gap-4 overflow-x-auto pb-8 scrollbar-hide px-2">
                     {movies.map(movie => (
                         <SmartMovieCard 
@@ -240,15 +238,14 @@ function App() {
                                     {continueWatchingMovies.length > 0 && renderMovieRow("Continue Watching", continueWatchingMovies)}
                                     {renderMovieRow("Recently Added", schedule.recentMovies)}
                                     
-                                    {/* CRASH PROTECTION for Genres */}
-                                    {GENRES.slice(0, 5).map(genre => (
-                                        renderMovieRow(genre.name, safeVault.filter(m => {
-                                            if (!m.topics || !Array.isArray(m.topics)) return false;
-                                            return m.topics.some(t => {
-                                                if (typeof t !== 'string') return false; 
-                                                return t.toLowerCase().includes(genre.id);
-                                            });
-                                        }).slice(0, 10))
+                                    {/* FIXED: GENRES ARE BACK & CRASH PROOF */}
+                                    {GENRES.map(genre => (
+                                        <div key={genre.id} id={`genre-${genre.id}`}>
+                                            {renderMovieRow(genre.name, safeVault.filter(m => {
+                                                if (!m.topics || !Array.isArray(m.topics)) return false;
+                                                return m.topics.some(t => typeof t === 'string' && t.toLowerCase().includes(genre.id));
+                                            }).slice(0, 10))}
+                                        </div>
                                     ))}
                                 </div>
                             </>
@@ -302,7 +299,6 @@ function App() {
                                 )}
                             </div>
                         )}
-
                         
                         {activePage === 'about' && (
                            <div className="pt-24 px-6 md:px-20 max-w-4xl mx-auto text-slate-300 pb-20">
@@ -384,7 +380,7 @@ function App() {
                 <div className="flex flex-col items-center gap-6">
                     <h2 className="text-3xl font-black italic uppercase tracking-tighter">ANREAL <span className="text-red-600">CINEMA</span></h2>
                     <p className="text-slate-400 text-sm">
-                        Powered by <a href="https://brubai.net/" target="_blank" rel="noopener noreferrer" className="text-red-500 font-bold hover:text-red-400 transition-colors">BRUB AI</a>
+                        Powered by <a href="https://brubai.net/" className="text-red-500 font-bold">BRUB AI</a>
                     </p>
                 </div>
             </footer>
