@@ -21,17 +21,20 @@ function App() {
     const [activePage, setActivePage] = useState('home');
     const [searchQuery, setSearchQuery] = useState('');
     
+    // Initialize state with empty arrays to prevent "Not Iterable" errors
     const [schedule, setSchedule] = useState({
         vaultMovies: [],
         recentMovies: [],
         comingSoonMovies: []
     });
 
+    // --- AUTOMATION ENGINE ---
     useEffect(() => {
         const getRawSchedule = () => {
             const now = new Date();
             const msPerWeek = 7 * 24 * 60 * 60 * 1000;
             
+            // Safety Helper: Ensure data is never null
             const sanitize = (list) => (!list ? [] : list.map(m => ({
                 ...m,
                 id: m.id || Math.random().toString(36).substr(2, 9),
@@ -39,7 +42,8 @@ function App() {
                 poster: m.poster || m.image, 
                 image: m.image || m.poster, 
                 videoUrl: m.videoUrl || "/banner.mp4",
-                topics: Array.isArray(m.topics) ? m.topics : (m.topics ? m.topics.split(',') : []) 
+                // CRITICAL FIX: Ensure topics is always an array
+                topics: m.topics ? (Array.isArray(m.topics) ? m.topics : m.topics.split(',')) : [] 
             })));
 
             let vault = [], recent = [], comingSoon = [];
@@ -60,8 +64,7 @@ function App() {
                 const comingSoonEnd = comingSoonStart + BATCH_SIZE;
                 comingSoon = sanitize(comingSoonData.slice(comingSoonStart, comingSoonEnd)).map(m => ({ ...m, isComingSoon: true }));
             }
-            
-            // Match state keys exactly
+            // Keys match state exactly
             return { vaultMovies: vault, recentMovies: recent, comingSoonMovies: comingSoon };
         };
 
@@ -83,7 +86,7 @@ function App() {
                         overview: hit.overview || movie.description 
                     };
                 }
-            } catch (e) { }
+            } catch (e) {}
             return movie;
         };
 
@@ -92,7 +95,12 @@ function App() {
                 Promise.all(raw.recentMovies.map(fetchPoster)),
                 Promise.all(raw.comingSoonMovies.map(fetchPoster))
             ]);
-            setSchedule({ vaultMovies: raw.vaultMovies, recentMovies: rec, comingSoonMovies: com });
+            
+            setSchedule({ 
+                vaultMovies: raw.vaultMovies, 
+                recentMovies: rec, 
+                comingSoonMovies: com 
+            });
         };
         run();
     }, []);
@@ -122,8 +130,14 @@ function App() {
     };
     
     const displayGenres = selectedGenre ? [selectedGenre] : GENRES;
-    const allSearchable = [...schedule.vaultMovies, ...schedule.recentMovies, ...schedule.comingSoonMovies];
-    const searchResults = searchQuery ? allSearchable.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase())) : [];
+    
+    // Safety Fallback
+    const safeVault = schedule.vaultMovies || [];
+    const safeRecent = schedule.recentMovies || [];
+    const safeComingSoon = schedule.comingSoonMovies || [];
+    
+    const allSearchable = [...safeVault, ...safeRecent, ...safeComingSoon];
+    const searchResults = searchQuery ? allSearchable.filter(m => m.title && m.title.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
     return (
         <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-red-600 selection:text-white">
@@ -147,15 +161,16 @@ function App() {
                                 <GenreBar onGenreSelect={handleGenreSelect} selectedGenre={selectedGenre} />
                                 <div className="z-20 relative mt-8 pb-20">
                                     <MovieRow 
-                                        genre={{ id: 'custom', name: 'Recently Added' }} 
-                                        movies={schedule.recentMovies} 
+                                        genre={{ name: "Recently Added", id: 'custom' }} 
+                                        movies={safeRecent} 
                                         onMovieClick={setSelectedMovie} 
                                     />
+                                    
                                     {displayGenres.map(genre => (
                                         <div key={genre.id} id={`genre-${genre.id}`}>
                                             <MovieRow 
                                                 genre={genre} 
-                                                movies={schedule.vaultMovies} 
+                                                movies={safeVault} 
                                                 onMovieClick={setSelectedMovie} 
                                             />
                                         </div>
@@ -166,19 +181,19 @@ function App() {
 
                         {activePage === 'movies' && (
                              <div className="pt-8 px-6">
-                                <MovieGrid title="The Vault" movies={schedule.vaultMovies} onMovieClick={setSelectedMovie} />
+                                <MovieGrid title="The Vault" movies={safeVault} onMovieClick={setSelectedMovie} />
                             </div>
                         )}
 
                         {activePage === 'recent' && (
                              <div className="pt-8 px-6">
-                                <MovieGrid title="Recently Added" movies={schedule.recentMovies} onMovieClick={setSelectedMovie} />
+                                <MovieGrid title="Recently Added" movies={safeRecent} onMovieClick={setSelectedMovie} />
                             </div>
                         )}
 
                         {activePage === 'popular' && (
                              <div className="pt-8 px-6">
-                                <MovieGrid title="Coming Soon" movies={schedule.comingSoonMovies} onMovieClick={() => {}} />
+                                <MovieGrid title="Coming Soon" movies={safeComingSoon} onMovieClick={() => {}} />
                             </div>
                         )}
                         
@@ -187,69 +202,22 @@ function App() {
                                 <h1 className="text-4xl md:text-5xl font-black italic mb-10 uppercase tracking-tighter text-white">
                                     About <span className="text-red-600">Anreal Cinema</span>
                                 </h1>
-                                
                                 <div className="space-y-12 text-lg leading-relaxed">
                                     <section>
-                                        <p className="mb-4 text-xl text-white font-medium">
-                                            Anreal Cinema is a digital streaming archive focused on public-domain and copyright-expired films.
-                                        </p>
-                                        <p>
-                                            The platform provides legal access to classic motion pictures from the silent era through mid-20th-century cinema, including early horror, science fiction, drama, and documentary titles that are no longer under active copyright protection. Our goal is simple: to make historically significant films accessible in a modern viewing format.
-                                        </p>
+                                        <p className="mb-4 text-xl text-white font-medium">Anreal Cinema is a digital streaming archive focused on public-domain and copyright-expired films.</p>
+                                        <p>The platform provides legal access to classic motion pictures from the silent era through mid-20th-century cinema, including early horror, science fiction, drama, and documentary titles that are no longer under active copyright protection.</p>
                                     </section>
-
                                     <section>
                                         <h3 className="text-2xl font-bold text-white mb-4 border-l-4 border-red-600 pl-4">AI-Driven Platform</h3>
-                                        <p className="mb-4">
-                                            Anreal Cinema is operated primarily through automated systems. Approximately 99% of the platform is managed by artificial intelligence, including:
-                                        </p>
-                                        <ul className="list-disc pl-6 space-y-2 mb-4 text-slate-400">
-                                            <li>Film indexing and catalog organization</li>
-                                            <li>Metadata generation and search optimization</li>
-                                            <li>Video processing and formatting</li>
-                                            <li>Playback delivery and monitoring</li>
-                                            <li>Archival maintenance</li>
-                                        </ul>
-                                        <p>
-                                            Selected titles on the platform have undergone AI-assisted restoration, improving image stability, clarity, and audio balance while maintaining the integrity of the original material. No narrative, visual, or editorial modifications are introduced.
-                                        </p>
+                                        <p>Anreal Cinema is operated primarily through automated systems. Approximately 99% of the platform is managed by artificial intelligence.</p>
                                     </section>
-
-                                    <section>
-                                        <h3 className="text-2xl font-bold text-white mb-4 border-l-4 border-red-600 pl-4">Film Sources and Restoration</h3>
-                                        <p className="mb-4">
-                                            All films hosted on Anreal Cinema are verified to be:
-                                        </p>
-                                        <ul className="list-disc pl-6 space-y-2 mb-4 text-slate-400">
-                                            <li>In the public domain, or</li>
-                                            <li>Free of active copyright restrictions</li>
-                                        </ul>
-                                        <p>
-                                            Where available, original or historically accurate cuts are used. In some cases, enhanced versions are presented to improve viewing quality on modern displays.
-                                        </p>
-                                    </section>
-
                                     <section>
                                         <h3 className="text-2xl font-bold text-white mb-4 border-l-4 border-red-600 pl-4">Purpose</h3>
-                                        <p className="mb-4">
-                                            Anreal Cinema is not a commercial streaming service and does not host newly released or licensed studio content. It exists as a preservation-focused archive intended for:
-                                        </p>
-                                        <ul className="list-disc pl-6 space-y-2 mb-4 text-slate-400">
-                                            <li>Education</li>
-                                            <li>Research</li>
-                                            <li>Historical reference</li>
-                                            <li>General public viewing</li>
-                                        </ul>
-                                        <p>
-                                            The platform is designed to operate quietly in the background, allowing the films themselves to remain the focus.
-                                        </p>
+                                        <p>Anreal Cinema is not a commercial streaming service. It exists as a preservation-focused archive intended for Education, Research, and Historical reference.</p>
                                     </section>
-
                                     <section className="bg-slate-900/50 p-6 rounded-lg border border-slate-800 mt-8">
                                         <h3 className="text-xl font-bold text-white mb-2">Legal Notice</h3>
-                                        <p className="text-sm text-slate-500">
-                                            Copyright laws vary by jurisdiction. Public-domain status is evaluated using available records and U.S. copyright standards. If you believe a title has been listed incorrectly, please contact the site administrator for review.
-                                        </p>
+                                        <p className="text-sm text-slate-500">Copyright laws vary by jurisdiction. Public-domain status is evaluated using available records and U.S. copyright standards.</p>
                                     </section>
                                 </div>
                             </div>

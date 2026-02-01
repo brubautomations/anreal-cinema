@@ -2,34 +2,29 @@ import React, { useState } from 'react';
 import { Play, Lock } from 'lucide-react';
 
 const MovieCard = ({ movie, onClick }) => {
-    const [imgError, setImgError] = useState(false);
-    const isComingSoon = movie.isComingSoon;
+    const [imgSrc, setImgSrc] = useState(movie.poster || movie.image);
+
+    const handleError = () => {
+        setImgSrc("https://placehold.co/400x600/1e293b/ffffff?text=No+Image");
+    };
 
     return (
         <div 
-            onClick={() => !isComingSoon && onClick(movie)}
+            onClick={() => !movie.isComingSoon && onClick(movie)}
             className={`relative flex-none w-44 md:w-72 aspect-[2/3] group cursor-pointer overflow-hidden rounded-md transition-all duration-500 hover:z-10 shadow-lg bg-slate-900 select-none ${
-                isComingSoon ? 'grayscale-[0.8] cursor-not-allowed opacity-60 hover:scale-100' : 'hover:scale-105'
+                movie.isComingSoon ? 'grayscale-[0.8] cursor-not-allowed opacity-60 hover:scale-100' : 'hover:scale-105'
             }`}
         >
-            {imgError ? (
-                <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-950 flex flex-col items-center justify-center p-6 text-center border border-white/5">
-                    <h3 className="text-white font-black text-xs md:text-sm uppercase italic tracking-tighter line-clamp-3">
-                        {movie.title}
-                    </h3>
-                </div>
-            ) : (
-                <img 
-                    src={movie.poster || movie.image} 
-                    alt={movie.title}
-                    onError={() => setImgError(true)}
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 pointer-events-none"
-                    loading="lazy"
-                />
-            )}
+            <img 
+                src={imgSrc} 
+                alt={movie.title}
+                onError={handleError}
+                className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 pointer-events-none"
+                loading="lazy"
+            />
 
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
-                {isComingSoon ? (
+                {movie.isComingSoon ? (
                     <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2 text-xs font-bold text-red-500 uppercase tracking-widest">
                             <Lock className="w-4 h-4" /> Locked

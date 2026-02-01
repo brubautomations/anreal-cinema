@@ -11,16 +11,20 @@ const MovieRow = ({ genre, movies, onMovieClick }) => {
         }
     };
 
-    // Robust filter to prevent crashes
+    // CRITICAL FIX: Safe filtering
     const genreMovies = movies.filter(movie => {
         if (!movie.topics) return false;
+        
+        // Handle array or string, and filter out nulls
         const topics = Array.isArray(movie.topics) 
             ? movie.topics 
-            : movie.topics.split(',').map(t => t.trim());
-        return topics.some(t => t.toLowerCase() === genre.id.toLowerCase());
+            : (typeof movie.topics === 'string' ? movie.topics.split(',') : []);
+            
+        // Check if ANY topic matches, but check for null topic first
+        return topics.some(t => t && t.toString().toLowerCase().includes(genre.id.toLowerCase()));
     });
 
-    // Handle "Custom" rows (like Recently Added)
+    // If "Custom" (Recently Added), show all. Otherwise show filtered.
     const moviesToRender = genre.id === 'custom' ? movies : genreMovies;
 
     if (moviesToRender.length === 0) return null;
