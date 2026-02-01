@@ -77,6 +77,8 @@ function App() {
         const getRawSchedule = () => {
             const now = new Date();
             const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+            
+            // Helper
             const sanitize = (list) => (!list ? [] : list.map(m => ({
                 ...m,
                 id: m.id || Math.random().toString(36).substr(2, 9),
@@ -85,27 +87,32 @@ function App() {
                 videoUrl: m.videoUrl || "/banner.mp4"
             })));
 
-            let vault = [], recent = [], comingSoon = [];
-            // Handle missing originals file gracefully
-            let originals = originalsData ? sanitize(originalsData).map(m => ({ ...m, isComingSoon: false })) : [];
+            // Initialize variables with CORRECT NAMES matching State
+            let vaultMovies = [];
+            let recentMovies = [];
+            let comingSoonMovies = [];
+            let originalMovies = originalsData ? sanitize(originalsData).map(m => ({ ...m, isComingSoon: false })) : [];
 
             if (now < START_DATE) {
-                vault = sanitize(vaultMoviesData).map(m => ({ ...m, isComingSoon: false }));
-                comingSoon = sanitize(comingSoonData.slice(0, BATCH_SIZE)).map(m => ({ ...m, isComingSoon: true })); 
+                vaultMovies = sanitize(vaultMoviesData).map(m => ({ ...m, isComingSoon: false }));
+                comingSoonMovies = sanitize(comingSoonData.slice(0, BATCH_SIZE)).map(m => ({ ...m, isComingSoon: true })); 
             } else {
                 const weeksPassed = Math.floor((now.getTime() - START_DATE.getTime()) / msPerWeek);
+                
                 const vaultFromNewData = comingSoonData.slice(0, weeksPassed * BATCH_SIZE);
-                vault = sanitize([...vaultMoviesData, ...vaultFromNewData]).map(m => ({ ...m, isComingSoon: false }));
+                vaultMovies = sanitize([...vaultMoviesData, ...vaultFromNewData]).map(m => ({ ...m, isComingSoon: false }));
                 
                 const recentStart = weeksPassed * BATCH_SIZE;
                 const recentEnd = recentStart + BATCH_SIZE;
-                recent = sanitize(comingSoonData.slice(recentStart, recentEnd)).map(m => ({ ...m, isComingSoon: false }));
+                recentMovies = sanitize(comingSoonData.slice(recentStart, recentEnd)).map(m => ({ ...m, isComingSoon: false }));
                 
                 const comingSoonStart = recentEnd;
                 const comingSoonEnd = comingSoonStart + BATCH_SIZE;
-                comingSoon = sanitize(comingSoonData.slice(comingSoonStart, comingSoonEnd)).map(m => ({ ...m, isComingSoon: true }));
+                comingSoonMovies = sanitize(comingSoonData.slice(comingSoonStart, comingSoonEnd)).map(m => ({ ...m, isComingSoon: true }));
             }
-            return { vault, recent, comingSoon, originalMovies: originals };
+            
+            // Return keys that match state exactly
+            return { vaultMovies, recentMovies, comingSoonMovies, originalMovies };
         };
 
         const raw = getRawSchedule();
@@ -133,10 +140,17 @@ function App() {
 
         const run = async () => {
             const [rec, com] = await Promise.all([
-                Promise.all(raw.recent.map(fetchPoster)),
-                Promise.all(raw.comingSoon.map(fetchPoster))
+                Promise.all(raw.recentMovies.map(fetchPoster)),
+                Promise.all(raw.comingSoonMovies.map(fetchPoster))
             ]);
-            setSchedule({ ...raw, recentMovies: rec, comingSoonMovies: com });
+            
+            // Now the keys match perfectly, preventing the crash
+            setSchedule({ 
+                vaultMovies: raw.vaultMovies,
+                recentMovies: rec, 
+                comingSoonMovies: com,
+                originalMovies: raw.originalMovies
+            });
         };
         run();
     }, []);
@@ -144,7 +158,7 @@ function App() {
 
     // --- RENDERING HELPERS ---
     
-    // MISSING FUNCTION FIXED HERE:
+    // Handler fix from before
     const handleSearch = (query) => {
         setSearchQuery(query);
         setActivePage(query ? 'search' : 'home');
@@ -169,7 +183,13 @@ function App() {
         }
     };
     
-    const continueWatchingMovies = [...schedule.vaultMovies, ...schedule.recentMovies, ...schedule.originalMovies]
+    // Safe Arrays for rendering
+    const safeVault = schedule.vaultMovies || [];
+    const safeRecent = schedule.recentMovies || [];
+    const safeOriginals = schedule.originalMovies || [];
+    const safeComingSoon = schedule.comingSoonMovies || [];
+
+    const continueWatchingMovies = [...safeVault, ...safeRecent, ...safeOriginals]
         .filter(m => {
             const prog = watchProgress[m.id];
             return prog && prog.percentage > 0 && prog.percentage < 95;
@@ -198,7 +218,7 @@ function App() {
         );
     };
 
-    const allSearchable = [...schedule.vaultMovies, ...schedule.recentMovies, ...schedule.comingSoonMovies, ...schedule.originalMovies];
+    const allSearchable = [...safeVault, ...safeRecent, ...safeComingSoon, ...safeOriginals];
     const searchResults = searchQuery ? allSearchable.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
     return (
@@ -221,13 +241,12 @@ function App() {
                         {activePage === 'home' && (
                             <>
                                 <Hero onRandomWatch={() => {}} />
-                                <GenreBar onGenreSelect={handleGenreSelect} selectedGenre={selectedGenre} />
                                 <div className="z-20 relative mt-8 pb-20">
                                     {continueWatchingMovies.length > 0 && renderMovieRow("Continue Watching", continueWatchingMovies)}
                                     {renderMovieRow("Recently Added", schedule.recentMovies)}
                                     {renderMovieRow("Anreal Originals", schedule.originalMovies)}
                                     {GENRES.slice(0, 5).map(genre => (
-                                        renderMovieRow(genre.name, schedule.vaultMovies.filter(m => {
+                                        renderMovieRow(genre.name, safeVault.filter(m => {
                                             if (!m.topics) return false;
                                             return m.topics.some(t => t.toLowerCase().includes(genre.id));
                                         }).slice(0, 10))
@@ -240,7 +259,7 @@ function App() {
                              <div className="pt-8 px-6">
                                 <h2 className="text-3xl font-black italic mb-8">THE <span className="text-red-600">VAULT</span></h2>
                                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                                    {schedule.vaultMovies.map(movie => <SmartMovieCard key={movie.id} movie={movie} onClick={setSelectedMovie} onToggleList={toggleMyList} isInList={myList.some(m => m.id === movie.id)} />)}
+                                    {safeVault.map(movie => <SmartMovieCard key={movie.id} movie={movie} onClick={setSelectedMovie} onToggleList={toggleMyList} isInList={myList.some(m => m.id === movie.id)} />)}
                                 </div>
                             </div>
                         )}
@@ -249,7 +268,7 @@ function App() {
                              <div className="pt-8 px-6">
                                 <h2 className="text-3xl font-black italic mb-8">RECENTLY <span className="text-red-600">ADDED</span></h2>
                                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                                    {schedule.recentMovies.map(movie => <SmartMovieCard key={movie.id} movie={movie} onClick={setSelectedMovie} onToggleList={toggleMyList} isInList={myList.some(m => m.id === movie.id)} />)}
+                                    {safeRecent.map(movie => <SmartMovieCard key={movie.id} movie={movie} onClick={setSelectedMovie} onToggleList={toggleMyList} isInList={myList.some(m => m.id === movie.id)} />)}
                                 </div>
                             </div>
                         )}
@@ -258,7 +277,7 @@ function App() {
                              <div className="pt-8 px-6">
                                 <h2 className="text-3xl font-black italic mb-8">COMING <span className="text-red-600">SOON</span></h2>
                                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                                    {schedule.comingSoonMovies.map(movie => <SmartMovieCard key={movie.id} movie={movie} onClick={setSelectedMovie} onToggleList={toggleMyList} isInList={myList.some(m => m.id === movie.id)} />)}
+                                    {safeComingSoon.map(movie => <SmartMovieCard key={movie.id} movie={movie} onClick={setSelectedMovie} onToggleList={toggleMyList} isInList={myList.some(m => m.id === movie.id)} />)}
                                 </div>
                             </div>
                         )}
@@ -289,7 +308,7 @@ function App() {
                             <div className="pt-8 px-6">
                                 <h2 className="text-3xl font-black italic mb-8">ANREAL <span className="text-red-600">ORIGINALS</span></h2>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                                    {schedule.originalMovies.map(movie => <SmartMovieCard key={movie.id} movie={movie} onClick={setSelectedMovie} onToggleList={toggleMyList} isInList={myList.some(m => m.id === movie.id)} />)}
+                                    {safeOriginals.map(movie => <SmartMovieCard key={movie.id} movie={movie} onClick={setSelectedMovie} onToggleList={toggleMyList} isInList={myList.some(m => m.id === movie.id)} />)}
                                 </div>
                             </div>
                         )}
@@ -313,7 +332,7 @@ function App() {
                 <div className="flex flex-col items-center gap-6">
                     <h2 className="text-3xl font-black italic uppercase tracking-tighter">ANREAL <span className="text-red-600">CINEMA</span></h2>
                     <p className="text-slate-400 text-sm">
-                        Powered by <a href="https://brubai.net/" target="_blank" rel="noopener noreferrer" className="text-red-500 font-bold hover:text-red-400 transition-colors">BRUB AI</a>
+                        Powered by <a href="https://brubai.net/" className="text-red-500 font-bold">BRUB AI</a>
                     </p>
                 </div>
             </footer>
