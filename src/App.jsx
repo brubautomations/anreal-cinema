@@ -78,16 +78,17 @@ function App() {
             const now = new Date();
             const msPerWeek = 7 * 24 * 60 * 60 * 1000;
             
-            // Helper
+            // Helper: Sanitize AND ensure topics is an array
             const sanitize = (list) => (!list ? [] : list.map(m => ({
                 ...m,
                 id: m.id || Math.random().toString(36).substr(2, 9),
                 poster: m.poster || m.image, 
                 image: m.image || m.poster, 
-                videoUrl: m.videoUrl || "/banner.mp4"
+                videoUrl: m.videoUrl || "/banner.mp4",
+                topics: Array.isArray(m.topics) ? m.topics : [] // Fix for the Crash
             })));
 
-            // Initialize variables with CORRECT NAMES matching State
+            // Initialize variables
             let vaultMovies = [];
             let recentMovies = [];
             let comingSoonMovies = [];
@@ -111,7 +112,6 @@ function App() {
                 comingSoonMovies = sanitize(comingSoonData.slice(comingSoonStart, comingSoonEnd)).map(m => ({ ...m, isComingSoon: true }));
             }
             
-            // Return keys that match state exactly
             return { vaultMovies, recentMovies, comingSoonMovies, originalMovies };
         };
 
@@ -144,7 +144,6 @@ function App() {
                 Promise.all(raw.comingSoonMovies.map(fetchPoster))
             ]);
             
-            // Now the keys match perfectly, preventing the crash
             setSchedule({ 
                 vaultMovies: raw.vaultMovies,
                 recentMovies: rec, 
@@ -158,7 +157,7 @@ function App() {
 
     // --- RENDERING HELPERS ---
     
-    // Handler fix from before
+    // THIS WAS MISSING BEFORE - IT IS HERE NOW
     const handleSearch = (query) => {
         setSearchQuery(query);
         setActivePage(query ? 'search' : 'home');
@@ -245,10 +244,14 @@ function App() {
                                     {continueWatchingMovies.length > 0 && renderMovieRow("Continue Watching", continueWatchingMovies)}
                                     {renderMovieRow("Recently Added", schedule.recentMovies)}
                                     {renderMovieRow("Anreal Originals", schedule.originalMovies)}
+                                    {/* CRASH FIX: ADDED ULTRA SAFE FILTERING */}
                                     {GENRES.slice(0, 5).map(genre => (
                                         renderMovieRow(genre.name, safeVault.filter(m => {
                                             if (!m.topics) return false;
-                                            return m.topics.some(t => t.toLowerCase().includes(genre.id));
+                                            return m.topics.some(t => {
+                                                if (typeof t !== 'string') return false; // Safety Check
+                                                return t.toLowerCase().includes(genre.id);
+                                            });
                                         }).slice(0, 10))
                                     ))}
                                 </div>
