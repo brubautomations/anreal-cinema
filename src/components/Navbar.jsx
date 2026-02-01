@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X, Search, Film, Star, Plus, Check } from 'lucide-react';
+import { Menu, X, Search, Film, Plus, Check } from 'lucide-react';
 
 const Navbar = ({ activePage, setActivePage, onSearch }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -17,12 +17,12 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
         setIsMenuOpen(false);
     };
 
+    // REMOVED "ORIGINALS" TO FIX CROWDING
     const navLinks = [
         { id: 'home', label: 'Home' },
         { id: 'movies', label: 'The Vault' },
         { id: 'recent', label: 'Recently Added' },
         { id: 'popular', label: 'Coming Soon' },
-        { id: 'originals', label: 'Originals', isSpecial: true },
         { id: 'mylist', label: 'My List' },
         { id: 'about', label: 'About' }
     ];
@@ -36,8 +36,12 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
                         onClick={() => handleNavClick('home')}
                     >
                         <Film className="w-8 h-8 text-red-600" />
-                        <span className="text-xl font-black tracking-tighter italic">
+                        <span className="text-xl font-black tracking-tighter italic hidden md:block">
                             ANREAL <span className="text-red-600">CINEMA</span>
+                        </span>
+                        {/* Mobile Logo Shortened */}
+                        <span className="text-xl font-black tracking-tighter italic md:hidden">
+                            ANREAL
                         </span>
                     </div>
 
@@ -46,11 +50,10 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
                             <button
                                 key={link.id}
                                 onClick={() => handleNavClick(link.id)}
-                                className={`text-sm font-bold uppercase tracking-widest transition-colors flex items-center gap-1 ${
+                                className={`text-xs lg:text-sm font-bold uppercase tracking-widest transition-colors flex items-center gap-1 ${
                                     activePage === link.id ? 'text-red-600' : 'text-slate-300 hover:text-white'
-                                } ${link.isSpecial ? 'text-amber-400 hover:text-amber-300' : ''}`}
+                                }`}
                             >
-                                {link.isSpecial && <Star size={14} fill="currentColor" />}
                                 {link.label}
                             </button>
                         ))}
@@ -60,8 +63,8 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
                         <form onSubmit={handleSearchSubmit} className="relative">
                             <input
                                 type="text"
-                                placeholder="Search archives..."
-                                className="bg-slate-900 border border-slate-700 rounded-full py-1 px-4 text-sm focus:outline-none focus:border-red-600 w-64 transition-all"
+                                placeholder="Search..."
+                                className="bg-slate-900 border border-slate-700 rounded-full py-1 px-4 text-sm focus:outline-none focus:border-red-600 w-48 transition-all"
                                 value={localSearch}
                                 onChange={(e) => setLocalSearch(e.target.value)}
                             />
@@ -87,11 +90,10 @@ const Navbar = ({ activePage, setActivePage, onSearch }) => {
                             <button
                                 key={link.id}
                                 onClick={() => handleNavClick(link.id)}
-                                className={`block w-full text-left px-3 py-3 rounded-md text-base font-bold uppercase tracking-wider flex items-center gap-2 ${
+                                className={`block w-full text-left px-3 py-3 rounded-md text-base font-bold uppercase tracking-wider ${
                                     activePage === link.id ? 'bg-red-600/10 text-red-500' : 'text-slate-300 hover:bg-slate-900'
-                                } ${link.isSpecial ? 'text-amber-400' : ''}`}
+                                }`}
                             >
-                                {link.isSpecial && <Star size={16} fill="currentColor" />}
                                 {link.label}
                             </button>
                         ))}
